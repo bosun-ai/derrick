@@ -15,6 +15,7 @@ pub trait Adapter: Send + Sync {
     fn cmd_with_output(&self, cmd: &str) -> Result<String>;
     fn write_file(&self, path: &str, content: &str) -> Result<()>;
     fn debug(&self) -> String;
+    fn working_dir(&mut self, path: &str) -> Result<()>;
 }
 
 impl Debug for dyn Adapter {

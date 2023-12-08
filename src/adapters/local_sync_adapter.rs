@@ -15,6 +15,7 @@ use tracing::{debug, warn};
 pub struct LocalTempSync {
     name: String,
     path: OnceLock<String>,
+    working_dir: Option<String>,
 }
 
 impl Debug for LocalTempSync {
@@ -29,6 +30,7 @@ impl LocalTempSync {
         Self {
             name: name.into(),
             path: OnceLock::new(),
+            working_dir: None,
         }
     }
 
@@ -40,11 +42,19 @@ impl LocalTempSync {
             .output()
     }
 
-    fn path(&self) -> &str {
-        self.path
-            .get()
-            .context("Expected path to be set, workspace not initialized?")
-            .unwrap()
+    fn path(&self) -> String {
+        let mut base_path = std::path::PathBuf::from(
+            self.path
+                .get()
+                .context("Expected path to be set, workspace not initialized?")
+                .unwrap(),
+        );
+
+        if let Some(working_dir) = &self.working_dir {
+            base_path.push(working_dir);
+        }
+
+        base_path.to_str().unwrap().into()
     }
 }
 
@@ -101,6 +111,11 @@ impl Adapter for LocalTempSync {
     fn write_file(&self, file: &str, content: &str) -> Result<()> {
         std::fs::write(format!("{}/{}", &self.path(), file), content)
             .context("Could not write file")
+    }
+
+    fn working_dir(&mut self, path: &str) -> Result<()> {
+        self.working_dir = Some(path.into());
+        Ok(())
     }
 }
 

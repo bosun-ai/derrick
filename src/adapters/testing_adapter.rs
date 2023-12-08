@@ -96,6 +96,13 @@ impl Adapter for TestingAdapter {
     fn write_file(&self, file: &str, content: &str) -> Result<()> {
         std::fs::write(format!("{}/{}", &self.path, file), content).context("Could not write file")
     }
+
+    fn working_dir(&mut self, path: &str) -> Result<()> {
+        self.path = init_path(path)
+            .context("Could not create local temp directory")
+            .unwrap();
+        Ok(())
+    }
 }
 
 #[tracing::instrument]
