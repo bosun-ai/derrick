@@ -12,16 +12,10 @@ use tracing::{debug, warn};
 // NOTE:
 //  - might be useful to drop the directory after out of scope
 //  - haven't decided what to do with stdout/stderr
+#[derive(Debug)]
 pub struct LocalTempSync {
     name: String,
     path: OnceLock<String>,
-    working_dir: Option<String>,
-}
-
-impl Debug for LocalTempSync {
-    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        write!(f, "LocalTempSync")
-    }
 }
 
 impl LocalTempSync {
@@ -30,19 +24,22 @@ impl LocalTempSync {
         Self {
             name: name.into(),
             path: OnceLock::new(),
-            working_dir: None,
         }
     }
 
-    #[tracing::instrument]
-    fn spawn_cmd(&self, cmd: &str) -> std::result::Result<std::process::Output, std::io::Error> {
+    fn spawn_cmd(
+        &self,
+        cmd: &str,
+        working_dir: Option<&str>,
+    ) -> std::result::Result<std::process::Output, std::io::Error> {
+        debug!(cmd = cmd, path = self.path(working_dir), "Running command");
         Command::new("bash")
             .args(["-c", cmd])
-            .current_dir(self.path())
+            .current_dir(self.path(working_dir))
             .output()
     }
 
-    fn path(&self) -> String {
+    fn path(&self, working_dir: Option<&str>) -> String {
         let mut base_path = std::path::PathBuf::from(
             self.path
                 .get()
@@ -50,7 +47,7 @@ impl LocalTempSync {
                 .unwrap(),
         );
 
-        if let Some(working_dir) = &self.working_dir {
+        if let Some(working_dir) = working_dir {
             base_path.push(working_dir);
         }
 
@@ -87,35 +84,24 @@ impl Adapter for LocalTempSync {
     }
 
     #[tracing::instrument]
-    fn cmd(&self, cmd: &str) -> Result<()> {
-        self.spawn_cmd(cmd)
+    fn cmd(&self, cmd: &str, working_dir: Option<&str>) -> Result<()> {
+        warn!(cmd = cmd, path = self.path(working_dir), "Running command");
+        self.spawn_cmd(cmd, working_dir)
             .map(handle_command_result)?
             .map(|_| ())
             .context("Could not run command")
     }
 
     #[tracing::instrument]
-    fn cmd_with_output(&self, cmd: &str) -> Result<String> {
-        self.spawn_cmd(cmd).map(handle_command_result)?
-    }
-
-    fn debug(&self) -> String {
-        format!(
-            "LocalTempSync{{name: {}, path: {}}}",
-            self.name,
-            self.path.get().map(|v| v.as_str()).unwrap_or("not set")
-        )
+    fn cmd_with_output(&self, cmd: &str, working_dir: Option<&str>) -> Result<String> {
+        self.spawn_cmd(cmd, working_dir)
+            .map(handle_command_result)?
     }
 
     #[tracing::instrument]
-    fn write_file(&self, file: &str, content: &str) -> Result<()> {
-        std::fs::write(format!("{}/{}", &self.path(), file), content)
+    fn write_file(&self, file: &str, content: &str, working_dir: Option<&str>) -> Result<()> {
+        std::fs::write(format!("{}/{}", &self.path(working_dir), file), content)
             .context("Could not write file")
-    }
-
-    fn working_dir(&mut self, path: &str) -> Result<()> {
-        self.working_dir = Some(path.into());
-        Ok(())
     }
 }
 
@@ -135,12 +121,13 @@ fn handle_command_result(result: std::process::Output) -> Result<String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use test_log::test;
 
     #[test]
     fn test_cmd_with_output() {
         let adapter = LocalTempSync::new("test");
         adapter.init().unwrap();
-        let result = adapter.cmd_with_output("pwd");
+        let result = adapter.cmd_with_output("pwd", None);
         assert!(result.is_ok());
         let stdout = result.unwrap();
         assert!(stdout.contains("tmp/test"));
@@ -150,9 +137,21 @@ mod tests {
     fn test_sets_path_correctly_for_run_cmd() {
         let adapter = LocalTempSync::new("test");
         adapter.init().unwrap();
-        let output = adapter.spawn_cmd("pwd").unwrap();
+        let output = adapter.spawn_cmd("pwd", None).unwrap();
         let stdout = String::from_utf8_lossy(&output.stdout).to_string();
         assert!(stdout.contains("tmp/test"));
+    }
+
+    #[test]
+    fn test_working_dir() {
+        let adapter = LocalTempSync::new("test");
+        adapter.init().unwrap();
+        adapter.spawn_cmd("mkdir subdir", None).unwrap();
+        let output = adapter.spawn_cmd("pwd", Some("subdir")).unwrap();
+        let stdout = String::from_utf8_lossy(&output.stdout).to_string();
+
+        assert!(stdout.contains("tmp/test/subdir"));
+        assert!(adapter.path(Some("subdir")).contains("tmp/test/subdir"));
     }
 
     #[test]
@@ -169,7 +168,7 @@ mod tests {
         let adapter = LocalTempSync::new("test");
         let result = adapter.init();
         assert!(result.is_ok());
-        let str_path = adapter.path().to_string();
+        let str_path = adapter.path(None).to_string();
         let path = std::path::Path::new(&str_path);
         assert!(path.exists());
     }
@@ -178,7 +177,7 @@ mod tests {
     fn test_cmd_valid() {
         let adapter = LocalTempSync::new("test");
         adapter.init().unwrap();
-        let result = adapter.cmd("ls");
+        let result = adapter.cmd("ls", None);
         println!("{:#?}", result);
         assert!(result.is_ok());
     }
@@ -187,7 +186,7 @@ mod tests {
     fn test_cmd_invalid() {
         let adapter = LocalTempSync::new("test");
         adapter.init().unwrap();
-        let result = adapter.cmd("invalid command");
+        let result = adapter.cmd("invalid command", None);
         assert!(result.is_err());
     }
 
@@ -195,9 +194,9 @@ mod tests {
     fn test_piping_a_command() {
         let adapter = LocalTempSync::new("test");
         adapter.init().unwrap();
-        adapter.cmd("echo 'hello' > test.txt").unwrap();
+        adapter.cmd("echo 'hello' > test.txt", None).unwrap();
         // check if file was created
-        let result = adapter.cmd("cat test.txt | grep 'hello'");
+        let result = adapter.cmd("cat test.txt | grep 'hello'", None);
         dbg!(&result);
         assert!(result.is_ok());
     }
@@ -207,14 +206,16 @@ mod tests {
         let adapter = LocalTempSync::new("test");
         adapter.init().unwrap();
         adapter
-            .write_file("write.txt", "Hello, world!")
+            .write_file("write.txt", "Hello, world!", None)
             .expect("Could not write file");
-        let result = adapter.cmd_with_output("cat write.txt");
+        let result = adapter.cmd_with_output("cat write.txt", None);
         assert!(result.is_ok());
         assert_eq!(result.unwrap(), "Hello, world!");
 
-        adapter.write_file("write.txt", "Hello, back!").unwrap();
-        let result = adapter.cmd_with_output("cat write.txt");
+        adapter
+            .write_file("write.txt", "Hello, back!", None)
+            .unwrap();
+        let result = adapter.cmd_with_output("cat write.txt", None);
         assert!(result.is_ok());
         assert_eq!(result.unwrap(), "Hello, back!");
     }

@@ -14,7 +14,6 @@ use tracing::{debug, warn};
 //  - haven't decided what to do with stdout/stderr
 #[derive(Debug)]
 pub struct TestingAdapter {
-    name: String,
     path: String,
 }
 
@@ -24,10 +23,7 @@ impl TestingAdapter {
         let path = init_path(name)
             .context("Could not create local temp directory")
             .unwrap();
-        Self {
-            name: name.into(),
-            path,
-        }
+        Self { path }
     }
 
     #[tracing::instrument(skip(self), name = "TestingAdapter#spawn_cmd")]
@@ -75,7 +71,7 @@ impl Adapter for TestingAdapter {
     }
 
     #[tracing::instrument(skip(self), name = "TestingAdapter#cmd")]
-    fn cmd(&self, cmd: &str) -> Result<()> {
+    fn cmd(&self, cmd: &str, _working_dir: Option<&str>) -> Result<()> {
         self.spawn_cmd(cmd)
             .map(handle_command_result)
             .context("Could not run command")?
@@ -83,25 +79,14 @@ impl Adapter for TestingAdapter {
     }
 
     #[tracing::instrument(skip(self), name = "TestingAdapter#cmd_with_output")]
-    fn cmd_with_output(&self, cmd: &str) -> Result<String> {
+    fn cmd_with_output(&self, cmd: &str, _working_dir: Option<&str>) -> Result<String> {
         self.spawn_cmd(cmd)
             .map(handle_command_result)?
             .context("Could not run command")
     }
 
-    fn debug(&self) -> String {
-        format!("TestingAdapter{{name: {}, path: {}}}", self.name, self.path)
-    }
-
-    fn write_file(&self, file: &str, content: &str) -> Result<()> {
+    fn write_file(&self, file: &str, content: &str, _working_dir: Option<&str>) -> Result<()> {
         std::fs::write(format!("{}/{}", &self.path, file), content).context("Could not write file")
-    }
-
-    fn working_dir(&mut self, path: &str) -> Result<()> {
-        self.path = init_path(path)
-            .context("Could not create local temp directory")
-            .unwrap();
-        Ok(())
     }
 }
 
@@ -129,7 +114,7 @@ mod tests {
     fn test_cmd_with_output() {
         let adapter = TestingAdapter::new("test");
         adapter.init().unwrap();
-        let result = adapter.cmd_with_output("pwd");
+        let result = adapter.cmd_with_output("pwd", None);
         assert!(result.is_ok());
         let stdout = result.unwrap();
         assert!(stdout.contains("tmp/test"));
@@ -166,7 +151,7 @@ mod tests {
     fn test_cmd_valid() {
         let adapter = TestingAdapter::new("test");
         adapter.init().unwrap();
-        let result = adapter.cmd("ls");
+        let result = adapter.cmd("ls", None);
         println!("{:#?}", result);
         assert!(result.is_ok());
     }
@@ -175,9 +160,9 @@ mod tests {
     fn test_piping_a_command() {
         let adapter = TestingAdapter::new("test");
         adapter.init().unwrap();
-        adapter.cmd("echo 'hello' > test.txt").unwrap();
+        adapter.cmd("echo 'hello' > test.txt", None).unwrap();
         // check if file was created
-        let result = adapter.cmd("cat test.txt | grep 'hello'");
+        let result = adapter.cmd("cat test.txt | grep 'hello'", None);
         assert!(result.is_ok());
     }
 
@@ -186,14 +171,16 @@ mod tests {
         let adapter = TestingAdapter::new("test");
         adapter.init().unwrap();
         adapter
-            .write_file("test.txt", "Hello, world!")
+            .write_file("test.txt", "Hello, world!", None)
             .expect("Could not write file");
-        let result = adapter.cmd_with_output("cat test.txt");
+        let result = adapter.cmd_with_output("cat test.txt", None);
         assert!(result.is_ok());
         assert_eq!(result.unwrap(), "Hello, world!");
 
-        adapter.write_file("test.txt", "Hello, back!").unwrap();
-        let result = adapter.cmd_with_output("cat test.txt");
+        adapter
+            .write_file("test.txt", "Hello, back!", None)
+            .unwrap();
+        let result = adapter.cmd_with_output("cat test.txt", None);
         assert!(result.is_ok());
         assert_eq!(result.unwrap(), "Hello, back!");
     }
