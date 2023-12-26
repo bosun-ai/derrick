@@ -32,18 +32,18 @@ impl Workspace {
         }
     }
 
-    #[tracing::instrument(skip_all, name = "workspace.cmd")]
+    #[tracing::instrument(skip_all, name = "workspace.cmd", err)]
     pub fn cmd(&self, cmd: &str) -> Result<()> {
         self.adapter.cmd(cmd, self.working_dir.as_deref())
     }
 
-    #[tracing::instrument(skip_all, name = "workspace.cmd_with_output")]
+    #[tracing::instrument(skip_all, name = "workspace.cmd_with_output", err)]
     pub fn cmd_with_output(&self, cmd: &str) -> Result<String> {
         self.adapter
             .cmd_with_output(cmd, self.working_dir.as_deref())
     }
 
-    #[tracing::instrument(skip_all, name = "workspace.write_file")]
+    #[tracing::instrument(skip_all, name = "workspace.write_file", err)]
     pub fn write_file(&self, path: &str, content: &str) -> Result<()> {
         self.adapter
             .write_file(path, content, self.working_dir.as_deref())
