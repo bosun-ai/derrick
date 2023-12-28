@@ -89,7 +89,6 @@ impl Adapter for LocalTempSync {
         self.spawn_cmd(cmd, working_dir)
             .map(handle_command_result)?
             .map(|_| ())
-            .context("Could not run command")
     }
 
     #[tracing::instrument]

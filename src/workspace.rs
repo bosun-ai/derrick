@@ -32,40 +32,40 @@ impl Workspace {
         }
     }
 
-    #[tracing::instrument(skip_all, name = "workspace.cmd", err)]
+    #[tracing::instrument(skip(self), name = "workspace.cmd", err, ret)]
     pub fn cmd(&self, cmd: &str) -> Result<()> {
         self.adapter.cmd(cmd, self.working_dir.as_deref())
     }
 
-    #[tracing::instrument(skip_all, name = "workspace.cmd_with_output", err)]
+    #[tracing::instrument(skip(self), name = "workspace.cmd_with_output", err, ret)]
     pub fn cmd_with_output(&self, cmd: &str) -> Result<String> {
         self.adapter
             .cmd_with_output(cmd, self.working_dir.as_deref())
     }
 
-    #[tracing::instrument(skip_all, name = "workspace.write_file", err)]
+    #[tracing::instrument(skip(self, content), name = "workspace.write_file", err)]
     pub fn write_file(&self, path: &str, content: &str) -> Result<()> {
         self.adapter
             .write_file(path, content, self.working_dir.as_deref())
     }
 
-    #[tracing::instrument]
+    #[tracing::instrument(skip_all, name = "workspace.repository_exists")]
     fn repository_exists(&self) -> bool {
         self.adapter.cmd("ls -A .git", None).is_err()
     }
 
-    #[tracing::instrument]
+    #[tracing::instrument(skip_all, name = "workspace.clone_repository")]
     fn clone_repository(&self) -> Result<()> {
         self.adapter
             .cmd(&format!("git clone {} .", self.codebase_url), None)
     }
 
-    #[tracing::instrument]
+    #[tracing::instrument(skip_all, name = "workspace.update_repository")]
     fn update_repository(&self) -> Result<()> {
         self.adapter.cmd("git pull", None)
     }
 
-    #[tracing::instrument]
+    #[tracing::instrument(skip_all, name = "workspace.clean_repository")]
     fn clean_repository(&self) -> Result<()> {
         self.adapter.cmd("git clean -f .", None)?;
         self.adapter.cmd("git checkout .", None)
