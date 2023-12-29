@@ -1,4 +1,5 @@
 use crate::adapters::Adapter;
+use crate::Codebase;
 use anyhow::Result;
 use std::fmt::Debug;
 use tracing::info;
@@ -6,17 +7,15 @@ use tracing::info;
 #[derive(Debug)]
 pub struct Workspace {
     adapter: Box<dyn Adapter>,
-    codebase_url: String,
-    working_dir: Option<String>,
+    pub codebase: Codebase,
 }
 
 impl Workspace {
     #[tracing::instrument]
-    pub fn new(adapter: Box<dyn Adapter>, codebase_url: &str, working_dir: Option<&str>) -> Self {
+    pub fn new(adapter: Box<dyn Adapter>, codebase: &Codebase) -> Self {
         Self {
             adapter,
-            codebase_url: codebase_url.to_owned(),
-            working_dir: working_dir.map(|s| s.to_owned()),
+            codebase: codebase.to_owned(),
         }
     }
 
@@ -34,19 +33,19 @@ impl Workspace {
 
     #[tracing::instrument(skip(self), name = "workspace.cmd", err, ret)]
     pub fn cmd(&self, cmd: &str) -> Result<()> {
-        self.adapter.cmd(cmd, self.working_dir.as_deref())
+        self.adapter.cmd(cmd, self.codebase.working_dir.as_deref())
     }
 
     #[tracing::instrument(skip(self), name = "workspace.cmd_with_output", err, ret)]
     pub fn cmd_with_output(&self, cmd: &str) -> Result<String> {
         self.adapter
-            .cmd_with_output(cmd, self.working_dir.as_deref())
+            .cmd_with_output(cmd, self.codebase.working_dir.as_deref())
     }
 
     #[tracing::instrument(skip(self, content), name = "workspace.write_file", err)]
     pub fn write_file(&self, path: &str, content: &str) -> Result<()> {
         self.adapter
-            .write_file(path, content, self.working_dir.as_deref())
+            .write_file(path, content, self.codebase.working_dir.as_deref())
     }
 
     #[tracing::instrument(skip_all, name = "workspace.repository_exists")]
@@ -57,7 +56,7 @@ impl Workspace {
     #[tracing::instrument(skip_all, name = "workspace.clone_repository")]
     fn clone_repository(&self) -> Result<()> {
         self.adapter
-            .cmd(&format!("git clone {} .", self.codebase_url), None)
+            .cmd(&format!("git clone {} .", self.codebase.url), None)
     }
 
     #[tracing::instrument(skip_all, name = "workspace.update_repository")]
