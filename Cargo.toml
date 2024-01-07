@@ -7,7 +7,6 @@ edition = "2021"
 
 [dependencies]
 anyhow = { workspace = true }
-models = { path = "../models" }
 tokio = { version = "1.33.0", features = ["full"] }
 async-trait = "0.1.74"
 tracing = { workspace = true }
