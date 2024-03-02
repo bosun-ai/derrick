@@ -48,6 +48,12 @@ impl Workspace {
             .write_file(path, content, self.codebase.working_dir.as_deref())
     }
 
+    #[tracing::instrument(skip(self), name = "workspace.read_file", err)]
+    pub fn read_file(&self, path: &str) -> Result<String> {
+        self.adapter
+            .read_file(path, self.codebase.working_dir.as_deref())
+    }
+
     #[tracing::instrument(skip_all, name = "workspace.repository_exists")]
     fn repository_exists(&self) -> bool {
         self.adapter.cmd("ls -A .git", None).is_err()

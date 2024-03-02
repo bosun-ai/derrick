@@ -88,6 +88,10 @@ impl Adapter for TestingAdapter {
     fn write_file(&self, file: &str, content: &str, _working_dir: Option<&str>) -> Result<()> {
         std::fs::write(format!("{}/{}", &self.path, file), content).context("Could not write file")
     }
+
+    fn read_file(&self, file: &str, _working_dir: Option<&str>) -> Result<String> {
+        std::fs::read_to_string(format!("{}/{}", &self.path, file)).context("Could not read file")
+    }
 }
 
 #[tracing::instrument]

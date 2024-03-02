@@ -102,6 +102,12 @@ impl Adapter for LocalTempSync {
         std::fs::write(format!("{}/{}", &self.path(working_dir), file), content)
             .context("Could not write file")
     }
+
+    #[tracing::instrument]
+    fn read_file(&self, file: &str, working_dir: Option<&str>) -> Result<String> {
+        std::fs::read_to_string(format!("{}/{}", &self.path(working_dir), file))
+            .context("Could not read file")
+    }
 }
 
 #[tracing::instrument]
