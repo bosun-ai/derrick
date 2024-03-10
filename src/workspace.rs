@@ -24,10 +24,9 @@ impl Workspace {
         info!("Initializing workspace");
         self.adapter.init()?;
         if self.repository_exists() {
-            self.clone_repository()
-        } else {
-            self.update_repository()?;
             self.clean_repository()
+        } else {
+            self.clone_repository()
         }
     }
 
@@ -67,7 +66,7 @@ impl Workspace {
 
     #[tracing::instrument(skip_all, target = "bosun", name = "workspace.repository_exists")]
     fn repository_exists(&self) -> bool {
-        self.adapter.cmd("ls -A .git", None).is_err()
+        self.adapter.cmd("ls -A .git", None).is_ok()
     }
 
     #[tracing::instrument(skip_all, target = "bosun", name = "workspace.clone_repository")]
@@ -76,14 +75,9 @@ impl Workspace {
             .cmd(&format!("git clone {} .", self.codebase.url), None)
     }
 
-    #[tracing::instrument(skip_all, target = "bosun", name = "workspace.update_repository")]
-    fn update_repository(&self) -> Result<()> {
-        self.adapter.cmd("git pull", None)
-    }
-
     #[tracing::instrument(skip_all, target = "bosun", name = "workspace.clean_repository")]
     fn clean_repository(&self) -> Result<()> {
-        self.adapter.cmd("git clean -f .", None)?;
-        self.adapter.cmd("git checkout .", None)
+        let cmd = "git switch -fC $(git symbolic-ref refs/remotes/origin/HEAD | sed 's@^refs/remotes/origin/@@')";
+        self.adapter.cmd(cmd, None)
     }
 }
