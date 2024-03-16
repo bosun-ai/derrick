@@ -12,6 +12,7 @@ async-trait = { workspace = true }
 tracing = { workspace = true }
 regex = { workspace = true }
 rand = { workspace = true }
+infrastructure = { path = "../infrastructure" }
 
 [dev-dependencies]
 test-log = { workspace = true }
