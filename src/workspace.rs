@@ -26,6 +26,12 @@ impl Workspace {
         Self(Arc::new(Mutex::new(inner)))
     }
 
+    pub async fn full_path(&self) -> String {
+        let inner = self.0.lock().await;
+
+        inner.adapter.path(inner.codebase.working_dir.as_deref())
+    }
+
     #[tracing::instrument(skip_all, target = "bosun", name = "workspace.init")]
     pub async fn init(&self) -> Result<()> {
         info!("Initializing workspace");

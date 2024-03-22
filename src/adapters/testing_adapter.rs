@@ -64,6 +64,10 @@ impl Drop for TestingAdapter {
 
 #[async_trait]
 impl Adapter for TestingAdapter {
+    fn path(&self, _working_dir: Option<&str>) -> String {
+        self.path.clone()
+    }
+
     #[tracing::instrument]
     fn init(&self) -> Result<()> {
         warn!(path = &self.path, "Creating local temp directory");

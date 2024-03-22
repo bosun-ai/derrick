@@ -38,21 +38,6 @@ impl LocalTempSync {
             .current_dir(self.path(working_dir))
             .output()
     }
-
-    fn path(&self, working_dir: Option<&str>) -> String {
-        let mut base_path = std::path::PathBuf::from(
-            self.path
-                .get()
-                .context("Expected path to be set, workspace not initialized?")
-                .unwrap(),
-        );
-
-        if let Some(working_dir) = working_dir {
-            base_path.push(working_dir);
-        }
-
-        base_path.to_str().unwrap().into()
-    }
 }
 
 fn init_path(name: &str) -> Result<String> {
@@ -72,6 +57,20 @@ fn init_path(name: &str) -> Result<String> {
 
 #[async_trait]
 impl Adapter for LocalTempSync {
+    fn path(&self, working_dir: Option<&str>) -> String {
+        let mut base_path = std::path::PathBuf::from(
+            self.path
+                .get()
+                .context("Expected path to be set, workspace not initialized?")
+                .unwrap(),
+        );
+
+        if let Some(working_dir) = working_dir {
+            base_path.push(working_dir);
+        }
+
+        base_path.to_str().unwrap().into()
+    }
     #[tracing::instrument]
     fn init(&self) -> Result<()> {
         self.path.get_or_init(|| {
