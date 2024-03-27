@@ -10,8 +10,11 @@ anyhow = { workspace = true }
 async-trait = { workspace = true }
 tracing = { workspace = true }
 rand = { workspace = true }
+uuid = { workspace = true }
 infrastructure = { path = "../infrastructure" }
+octocrab = { workspace = true }
 tokio = { workspace = true }
+shell-escape = { workspace = true }
 
 [dev-dependencies]
 test-log = { workspace = true }

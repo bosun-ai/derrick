@@ -72,7 +72,7 @@ impl Adapter for LocalTempSync {
         base_path.to_str().unwrap().into()
     }
     #[tracing::instrument]
-    fn init(&self) -> Result<()> {
+    async fn init(&self) -> Result<()> {
         self.path.get_or_init(|| {
             init_path(&self.name)
                 .context("Could not create local temp directory")
@@ -83,7 +83,7 @@ impl Adapter for LocalTempSync {
     }
 
     #[tracing::instrument]
-    fn cmd(&self, cmd: &str, working_dir: Option<&str>) -> Result<()> {
+    async fn cmd(&self, cmd: &str, working_dir: Option<&str>) -> Result<()> {
         warn!(cmd = cmd, path = self.path(working_dir), "Running command");
         self.spawn_cmd(cmd, working_dir)
             .map(handle_command_result)?
@@ -91,19 +91,19 @@ impl Adapter for LocalTempSync {
     }
 
     #[tracing::instrument]
-    fn cmd_with_output(&self, cmd: &str, working_dir: Option<&str>) -> Result<String> {
+    async fn cmd_with_output(&self, cmd: &str, working_dir: Option<&str>) -> Result<String> {
         self.spawn_cmd(cmd, working_dir)
             .map(handle_command_result)?
     }
 
     #[tracing::instrument]
-    fn write_file(&self, file: &str, content: &str, working_dir: Option<&str>) -> Result<()> {
+    async fn write_file(&self, file: &str, content: &str, working_dir: Option<&str>) -> Result<()> {
         std::fs::write(format!("{}/{}", &self.path(working_dir), file), content)
             .context("Could not write file")
     }
 
     #[tracing::instrument]
-    fn read_file(&self, file: &str, working_dir: Option<&str>) -> Result<String> {
+    async fn read_file(&self, file: &str, working_dir: Option<&str>) -> Result<String> {
         std::fs::read_to_string(format!("{}/{}", &self.path(working_dir), file))
             .context("Could not read file")
     }
@@ -127,29 +127,29 @@ mod tests {
     use super::*;
     use test_log::test;
 
-    #[test]
-    fn test_cmd_with_output() {
+    #[tokio::test]
+    async fn test_cmd_with_output() {
         let adapter = LocalTempSync::new("test");
-        adapter.init().unwrap();
-        let result = adapter.cmd_with_output("pwd", None);
+        adapter.init().await.unwrap();
+        let result = adapter.cmd_with_output("pwd", None).await;
         assert!(result.is_ok());
         let stdout = result.unwrap();
         assert!(stdout.contains("tmp/test"));
     }
 
-    #[test]
-    fn test_sets_path_correctly_for_run_cmd() {
+    #[tokio::test]
+    async fn test_sets_path_correctly_for_run_cmd() {
         let adapter = LocalTempSync::new("test");
-        adapter.init().unwrap();
+        adapter.init().await.unwrap();
         let output = adapter.spawn_cmd("pwd", None).unwrap();
         let stdout = String::from_utf8_lossy(&output.stdout).to_string();
         assert!(stdout.contains("tmp/test"));
     }
 
-    #[test]
-    fn test_working_dir() {
+    #[tokio::test]
+    async fn test_working_dir() {
         let adapter = LocalTempSync::new("test");
-        adapter.init().unwrap();
+        adapter.init().await.unwrap();
         adapter.spawn_cmd("mkdir subdir", None).unwrap();
         let output = adapter.spawn_cmd("pwd", Some("subdir")).unwrap();
         let stdout = String::from_utf8_lossy(&output.stdout).to_string();
@@ -167,59 +167,61 @@ mod tests {
         assert!(std::path::PathBuf::from(&path).exists())
     }
 
-    #[test]
-    fn test_init() {
+    #[tokio::test]
+    async fn test_init() {
         let adapter = LocalTempSync::new("test");
-        let result = adapter.init();
+        let result = adapter.init().await;
         assert!(result.is_ok());
         let str_path = adapter.path(None).to_string();
         let path = std::path::Path::new(&str_path);
         assert!(path.exists());
     }
 
-    #[test]
-    fn test_cmd_valid() {
+    #[tokio::test]
+    async fn test_cmd_valid() {
         let adapter = LocalTempSync::new("test");
-        adapter.init().unwrap();
-        let result = adapter.cmd("ls", None);
+        adapter.init().await.unwrap();
+        let result = adapter.cmd("ls", None).await;
         println!("{:#?}", result);
         assert!(result.is_ok());
     }
 
-    #[test]
-    fn test_cmd_invalid() {
+    #[tokio::test]
+    async fn test_cmd_invalid() {
         let adapter = LocalTempSync::new("test");
-        adapter.init().unwrap();
-        let result = adapter.cmd("invalid command", None);
+        adapter.init().await.unwrap();
+        let result = adapter.cmd("invalid command", None).await;
         assert!(result.is_err());
     }
 
-    #[test]
-    fn test_piping_a_command() {
+    #[tokio::test]
+    async fn test_piping_a_command() {
         let adapter = LocalTempSync::new("test");
-        adapter.init().unwrap();
-        adapter.cmd("echo 'hello' > test.txt", None).unwrap();
+        adapter.init().await.unwrap();
+        adapter.cmd("echo 'hello' > test.txt", None).await.unwrap();
         // check if file was created
-        let result = adapter.cmd("cat test.txt | grep 'hello'", None);
+        let result = adapter.cmd("cat test.txt | grep 'hello'", None).await;
         dbg!(&result);
         assert!(result.is_ok());
     }
 
-    #[test]
-    fn test_writing_file() {
+    #[tokio::test]
+    async fn test_writing_file() {
         let adapter = LocalTempSync::new("test");
-        adapter.init().unwrap();
+        adapter.init().await.unwrap();
         adapter
             .write_file("write.txt", "Hello, world!", None)
+            .await
             .expect("Could not write file");
-        let result = adapter.cmd_with_output("cat write.txt", None);
+        let result = adapter.cmd_with_output("cat write.txt", None).await;
         assert!(result.is_ok());
         assert_eq!(result.unwrap(), "Hello, world!");
 
         adapter
             .write_file("write.txt", "Hello, back!", None)
+            .await
             .unwrap();
-        let result = adapter.cmd_with_output("cat write.txt", None);
+        let result = adapter.cmd_with_output("cat write.txt", None).await;
         assert!(result.is_ok());
         assert_eq!(result.unwrap(), "Hello, back!");
     }

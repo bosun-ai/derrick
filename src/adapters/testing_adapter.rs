@@ -69,13 +69,13 @@ impl Adapter for TestingAdapter {
     }
 
     #[tracing::instrument]
-    fn init(&self) -> Result<()> {
+    async fn init(&self) -> Result<()> {
         warn!(path = &self.path, "Creating local temp directory");
         Ok(())
     }
 
     #[tracing::instrument(skip(self), name = "TestingAdapter#cmd")]
-    fn cmd(&self, cmd: &str, _working_dir: Option<&str>) -> Result<()> {
+    async fn cmd(&self, cmd: &str, _working_dir: Option<&str>) -> Result<()> {
         self.spawn_cmd(cmd)
             .map(handle_command_result)
             .context("Could not run command")?
@@ -83,17 +83,22 @@ impl Adapter for TestingAdapter {
     }
 
     #[tracing::instrument(skip(self), name = "TestingAdapter#cmd_with_output")]
-    fn cmd_with_output(&self, cmd: &str, _working_dir: Option<&str>) -> Result<String> {
+    async fn cmd_with_output(&self, cmd: &str, _working_dir: Option<&str>) -> Result<String> {
         self.spawn_cmd(cmd)
             .map(handle_command_result)?
             .context("Could not run command")
     }
 
-    fn write_file(&self, file: &str, content: &str, _working_dir: Option<&str>) -> Result<()> {
+    async fn write_file(
+        &self,
+        file: &str,
+        content: &str,
+        _working_dir: Option<&str>,
+    ) -> Result<()> {
         std::fs::write(format!("{}/{}", &self.path, file), content).context("Could not write file")
     }
 
-    fn read_file(&self, file: &str, _working_dir: Option<&str>) -> Result<String> {
+    async fn read_file(&self, file: &str, _working_dir: Option<&str>) -> Result<String> {
         std::fs::read_to_string(format!("{}/{}", &self.path, file)).context("Could not read file")
     }
 }
@@ -118,20 +123,20 @@ fn handle_command_result(result: std::process::Output) -> Result<String> {
 mod tests {
     use super::*;
 
-    #[test]
-    fn test_cmd_with_output() {
+    #[tokio::test]
+    async fn test_cmd_with_output() {
         let adapter = TestingAdapter::new("test");
-        adapter.init().unwrap();
-        let result = adapter.cmd_with_output("pwd", None);
+        adapter.init().await.unwrap();
+        let result = adapter.cmd_with_output("pwd", None).await;
         assert!(result.is_ok());
         let stdout = result.unwrap();
         assert!(stdout.contains("tmp/test"));
     }
 
-    #[test]
-    fn test_sets_path_correctly_for_run_cmd() {
+    #[tokio::test]
+    async fn test_sets_path_correctly_for_run_cmd() {
         let adapter = TestingAdapter::new("test");
-        adapter.init().unwrap();
+        adapter.init().await.unwrap();
         let output = adapter.spawn_cmd("pwd").unwrap();
         let stdout = String::from_utf8_lossy(&output.stdout).to_string();
         assert!(stdout.contains("tmp/test"));
@@ -146,49 +151,51 @@ mod tests {
         assert!(std::path::PathBuf::from(&path).exists())
     }
 
-    #[test]
-    fn test_init() {
+    #[tokio::test]
+    async fn test_init() {
         let adapter = TestingAdapter::new("test");
-        let result = adapter.init();
+        let result = adapter.init().await;
         assert!(result.is_ok());
         let path = std::path::Path::new(&adapter.path);
         assert!(path.exists());
     }
 
-    #[test]
-    fn test_cmd_valid() {
+    #[tokio::test]
+    async fn test_cmd_valid() {
         let adapter = TestingAdapter::new("test");
-        adapter.init().unwrap();
-        let result = adapter.cmd("ls", None);
+        adapter.init().await.unwrap();
+        let result = adapter.cmd("ls", None).await;
         println!("{:#?}", result);
         assert!(result.is_ok());
     }
 
-    #[test]
-    fn test_piping_a_command() {
+    #[tokio::test]
+    async fn test_piping_a_command() {
         let adapter = TestingAdapter::new("test");
-        adapter.init().unwrap();
-        adapter.cmd("echo 'hello' > test.txt", None).unwrap();
+        adapter.init().await.unwrap();
+        adapter.cmd("echo 'hello' > test.txt", None).await.unwrap();
         // check if file was created
-        let result = adapter.cmd("cat test.txt | grep 'hello'", None);
+        let result = adapter.cmd("cat test.txt | grep 'hello'", None).await;
         assert!(result.is_ok());
     }
 
-    #[test]
-    fn test_writing_file() {
+    #[tokio::test]
+    async fn test_writing_file() {
         let adapter = TestingAdapter::new("test");
-        adapter.init().unwrap();
+        adapter.init().await.unwrap();
         adapter
             .write_file("test.txt", "Hello, world!", None)
+            .await
             .expect("Could not write file");
-        let result = adapter.cmd_with_output("cat test.txt", None);
+        let result = adapter.cmd_with_output("cat test.txt", None).await;
         assert!(result.is_ok());
         assert_eq!(result.unwrap(), "Hello, world!");
 
         adapter
             .write_file("test.txt", "Hello, back!", None)
+            .await
             .unwrap();
-        let result = adapter.cmd_with_output("cat test.txt", None);
+        let result = adapter.cmd_with_output("cat test.txt", None).await;
         assert!(result.is_ok());
         assert_eq!(result.unwrap(), "Hello, back!");
     }
