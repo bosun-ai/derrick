@@ -142,7 +142,7 @@ impl Workspace {
     async fn authenticate_with_repository_if_possible(&self) -> Result<()> {
         let mut inner = self.0.lock().await;
 
-        if let Ok(github_session) = infrastructure::github::GithubSession::new().await {
+        if let Ok(github_session) = infrastructure::github::GithubSession::try_new() {
             let github_url = github_session.add_token_to_url(&inner.codebase.url).await?;
             tracing::warn!("Token added to codebase url");
             inner.codebase.url = github_url;
@@ -209,7 +209,7 @@ impl Workspace {
         let branch_name = self.create_branch(None).await?;
         self.push(&branch_name).await?;
 
-        let github_session = infrastructure::github::GithubSession::new().await?;
+        let github_session = infrastructure::github::GithubSession::try_new()?;
         let repo_url = self.0.lock().await.codebase.url.clone();
 
         let mr = github_session
