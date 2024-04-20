@@ -156,12 +156,15 @@ impl Workspace {
     async fn authenticate_with_repository_if_possible(&self) -> Result<()> {
         let mut inner = self.0.lock().await;
 
-        if let Ok(github_session) = infrastructure::github::GithubSession::try_new() {
-            let github_url = github_session.add_token_to_url(&inner.codebase.url).await?;
-            tracing::warn!("Token added to codebase url");
-            inner.codebase.url = github_url;
-        } else {
-            tracing::warn!("Could not add token to codebase url");
+        match infrastructure::github::GithubSession::try_new() {
+            Ok(github_session) => {
+                let github_url = github_session.add_token_to_url(&inner.codebase.url).await?;
+                tracing::warn!("Token added to codebase url");
+                inner.codebase.url = github_url;
+            }
+            Err(e) => {
+                tracing::warn!(error = ?e, "Could not authenticate with github, continuing anyway ...");
+            }
         }
         Ok(())
     }
