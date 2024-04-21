@@ -21,6 +21,9 @@ fn escape(s: &str) -> String {
     escape_cow(std::borrow::Cow::Borrowed(s)).to_string()
 }
 
+static MAIN_BRANCH_CMD: &str =
+    "git symbolic-ref refs/remotes/origin/HEAD | sed 's@^refs/remotes/origin/@@'";
+
 impl Workspace {
     #[tracing::instrument]
     pub fn new(adapter: Box<dyn Adapter>, codebase: &Codebase) -> Self {
@@ -46,6 +49,8 @@ impl Workspace {
         self.0.lock().await.adapter.init().await?;
 
         if self.repository_exists().await {
+            // Token might be outdated so lets update it
+            self.update_remote().await?;
             self.clean_repository().await
         } else {
             self.clone_repository().await
@@ -130,34 +135,46 @@ impl Workspace {
             .await
     }
 
+    #[tracing::instrument(skip_all, target = "bosun", name = "workspace.update_remote")]
+    async fn update_remote(&self) -> Result<()> {
+        let inner = self.0.lock().await;
+        let url = inner.codebase.url.clone();
+
+        let cmd = format!("git remote set-url origin {}", escape(&url));
+        inner.adapter.cmd(&cmd, None).await
+    }
+
     #[tracing::instrument(skip_all, target = "bosun", name = "workspace.clean_repository")]
     async fn clean_repository(&self) -> Result<()> {
         let inner = self.0.lock().await;
 
-        let cmd = "git switch -fC $(git symbolic-ref refs/remotes/origin/HEAD | sed 's@^refs/remotes/origin/@@')";
-        inner.adapter.cmd(cmd, None).await
+        let cmd = format!("git switch -fC $({MAIN_BRANCH_CMD})");
+        inner.adapter.cmd(&cmd, None).await
     }
 
-    #[tracing::instrument(skip_all)]
+    #[tracing::instrument(skip_all, err)]
     async fn authenticate_with_repository_if_possible(&self) -> Result<()> {
         let mut inner = self.0.lock().await;
 
-        if let Ok(github_session) = infrastructure::github::GithubSession::new().await {
-            let github_url = github_session.add_token_to_url(&inner.codebase.url).await?;
-            tracing::warn!("Token added to codebase url");
-            inner.codebase.url = github_url;
-        } else {
-            tracing::warn!("Could not add token to codebase url");
+        match infrastructure::github::GithubSession::try_new() {
+            Ok(github_session) => {
+                let github_url = github_session.add_token_to_url(&inner.codebase.url).await?;
+                tracing::warn!("Token added to codebase url");
+                inner.codebase.url = github_url;
+            }
+            Err(e) => {
+                tracing::warn!(error = ?e, "Could not authenticate with github, continuing anyway ...");
+            }
         }
         Ok(())
     }
 
-    #[tracing::instrument(skip_all)]
-    pub async fn create_branch(&self, maybe_name: Option<String>) -> Result<String> {
+    #[tracing::instrument(skip_all, err)]
+    pub async fn create_branch(&self, maybe_name: Option<&str>) -> Result<String> {
         let inner = self.0.lock().await;
 
         let name = maybe_name
-            .map(|n| escape(n.as_str()))
+            .map(escape)
             .unwrap_or_else(|| format!("generated/{}", uuid::Uuid::new_v4()));
 
         let cmd = format!("git switch -c {}", name);
@@ -165,7 +182,7 @@ impl Workspace {
         Ok(name)
     }
 
-    #[tracing::instrument(skip_all)]
+    #[tracing::instrument(skip_all, err)]
     pub async fn commit(&self, message: &str, files: Option<Vec<String>>) -> Result<()> {
         let inner = self.0.lock().await;
 
@@ -182,17 +199,17 @@ impl Workspace {
 
             inner.adapter.cmd(&add_cmd, None).await?;
 
-            let cmd = format!("git commit -m '{}'", escape(message));
+            let cmd = format!("git commit -m {}", escape(message));
             inner.adapter.cmd(&cmd, None).await
         } else {
             let add_cmd = "git add .";
             inner.adapter.cmd(add_cmd, None).await?;
-            let cmd = format!("git commit -m '{}'", escape(message));
+            let cmd = format!("git commit -m {}", escape(message));
             inner.adapter.cmd(&cmd, None).await
         }
     }
 
-    #[tracing::instrument(skip_all)]
+    #[tracing::instrument(skip_all, err)]
     pub async fn push(&self, target_branch: &str) -> Result<()> {
         let inner = self.0.lock().await;
 
@@ -200,20 +217,23 @@ impl Workspace {
         inner.adapter.cmd(&cmd, None).await
     }
 
-    #[tracing::instrument(skip_all)]
+    #[tracing::instrument(skip_all, err)]
     pub async fn create_merge_request(
         &self,
         title: &str,
         description: &str,
+        branch_name: &str,
     ) -> Result<PullRequest> {
-        let branch_name = self.create_branch(None).await?;
-        self.push(&branch_name).await?;
-
-        let github_session = infrastructure::github::GithubSession::new().await?;
+        let github_session = infrastructure::github::GithubSession::try_new()?;
         let repo_url = self.0.lock().await.codebase.url.clone();
+        let main_branch = self
+            .cmd_with_output(MAIN_BRANCH_CMD)
+            .await?
+            .trim()
+            .to_owned();
 
         let mr = github_session
-            .create_merge_request(&repo_url, &branch_name, "master", title, description)
+            .create_merge_request(&repo_url, branch_name, &main_branch, title, description)
             .await?;
 
         tracing::info!("Created merge request: {}", mr.url);
