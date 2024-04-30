@@ -148,8 +148,18 @@ impl Workspace {
     async fn clean_repository(&self) -> Result<()> {
         let inner = self.0.lock().await;
 
-        let cmd = format!("git switch -fC $({MAIN_BRANCH_CMD})");
-        inner.adapter.cmd(&cmd, None).await
+        let checkout_cmd = format!("git checkout $({MAIN_BRANCH_CMD})");
+        let cmds = vec![
+            "git reset --hard",
+            "git clean -fd",
+            "git fetch origin",
+            &checkout_cmd,
+        ];
+
+        for cmd in cmds {
+            inner.adapter.cmd(cmd, None).await?;
+        }
+        Ok(())
     }
 
     #[tracing::instrument(skip_all, err)]
