@@ -7,6 +7,9 @@ pub use local_sync_adapter::LocalTempSync;
 mod testing_adapter;
 pub use testing_adapter::TestingAdapter;
 
+mod docker_adapter;
+pub use docker_adapter::DockerAdapter;
+
 #[async_trait]
 pub trait Adapter: Send + Sync + std::fmt::Debug {
     async fn init(&self) -> Result<()>;

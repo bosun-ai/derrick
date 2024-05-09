@@ -15,6 +15,8 @@ infrastructure = { path = "../infrastructure" }
 octocrab = { workspace = true }
 tokio = { workspace = true }
 shell-escape = { workspace = true }
+bollard = "0.16.1"
+futures-util = "0.3.30"
 
 [dev-dependencies]
 test-log = { workspace = true }
