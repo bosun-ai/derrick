@@ -1,6 +1,7 @@
 use crate::adapters::Adapter;
 use anyhow::{Context, Result};
 use async_trait::async_trait;
+use regex;
 use std::fmt::Debug;
 use std::process::Command;
 use std::sync::OnceLock;
@@ -18,6 +19,12 @@ pub struct LocalTempSync {
     path: OnceLock<String>,
 }
 
+// scrub removes x-access-token:<token> from a string like x-access-token:1234@github.com
+fn scrub(output: &str) -> String {
+    let re = regex::Regex::new(r"x-access-token:[^@]+@").unwrap();
+    re.replace_all(output, "x-access-token:***@").to_string()
+}
+
 impl LocalTempSync {
     #[tracing::instrument]
     pub fn new(name: &str) -> Self {
@@ -32,7 +39,11 @@ impl LocalTempSync {
         cmd: &str,
         working_dir: Option<&str>,
     ) -> std::result::Result<std::process::Output, std::io::Error> {
-        debug!(cmd = cmd, path = self.path(working_dir), "Running command");
+        debug!(
+            cmd = scrub(cmd),
+            path = self.path(working_dir),
+            "Running command"
+        );
         Command::new("bash")
             .args(["-c", cmd])
             .env_clear()
@@ -84,15 +95,15 @@ impl Adapter for LocalTempSync {
         Ok(())
     }
 
-    #[tracing::instrument]
+    // instrument but make sure the cmd is scrubbed
+    #[tracing::instrument(fields(cmd = scrub(cmd)))]
     async fn cmd(&self, cmd: &str, working_dir: Option<&str>) -> Result<()> {
-        warn!(cmd = cmd, path = self.path(working_dir), "Running command");
         self.spawn_cmd(cmd, working_dir)
             .map(handle_command_result)?
             .map(|_| ())
     }
 
-    #[tracing::instrument]
+    #[tracing::instrument(skip(self), fields(cmd = scrub(cmd)))]
     async fn cmd_with_output(&self, cmd: &str, working_dir: Option<&str>) -> Result<String> {
         self.spawn_cmd(cmd, working_dir)
             .map(handle_command_result)?

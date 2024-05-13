@@ -115,6 +115,9 @@ impl Workspace {
             .await
     }
 
+    // TODO: All the git commands should be pushed to the adapters so that there is a well defined
+    // interface for interacting with git that can be controlled by the adapters.
+
     #[tracing::instrument(skip_all, target = "bosun", name = "workspace.repository_exists")]
     async fn repository_exists(&self) -> bool {
         let inner = self.0.lock().await;
@@ -126,12 +129,11 @@ impl Workspace {
     async fn clone_repository(&self) -> Result<()> {
         let inner = self.0.lock().await;
 
+        let url = escape(inner.codebase.url.as_str());
+
         inner
             .adapter
-            .cmd(
-                &format!("git clone {} .", escape(inner.codebase.url.as_str())),
-                None,
-            )
+            .cmd(&format!("git clone {} .", url), None)
             .await
     }
 

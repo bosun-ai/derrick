@@ -15,6 +15,7 @@ infrastructure = { path = "../infrastructure" }
 octocrab = { workspace = true }
 tokio = { workspace = true }
 shell-escape = { workspace = true }
+regex = { workspace = true }
 
 [dev-dependencies]
 test-log = { workspace = true }
