@@ -20,3 +20,7 @@ shell-escape = { workspace = true }
 test-log = { workspace = true }
 tracing-subscriber = { workspace = true }
 regex = { workspace = true }
+
+[features]
+integration_testing = []
+default = []

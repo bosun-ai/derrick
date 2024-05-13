@@ -28,8 +28,23 @@ impl TestingAdapter {
 
     #[tracing::instrument(skip(self), name = "TestingAdapter#spawn_cmd")]
     fn spawn_cmd(&self, cmd: &str) -> Result<std::process::Output> {
+        // Never push in tests
+        if cmd.contains("git push") {
+            return Ok(std::process::Output {
+                status: std::process::ExitStatus::default(),
+                stdout: Vec::new(),
+                stderr: Vec::new(),
+            });
+        }
+
         Command::new("bash")
             .args(["-c", cmd])
+            .env_clear()
+            .env("GIT_AUTHOR_NAME", "fluyt-test")
+            .env("GIT_AUTHOR_EMAIL", "fluyt@bosun.ai")
+            .env("GIT_COMMITTER_NAME", "fluyt-test")
+            .env("GIT_COMMITTER_EMAIL", "fluyt@bosun.ai")
+            .env("GIT_TERMINAL_PROMPT", "0")
             .current_dir(&self.path)
             .output()
             .context("Could not run command")

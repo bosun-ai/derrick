@@ -164,12 +164,25 @@ impl Workspace {
 
     #[tracing::instrument(skip_all, err)]
     async fn authenticate_with_repository_if_possible(&self) -> Result<()> {
-        let mut inner = self.0.lock().await;
+        // Auth is tricky and not needed in integration tests.
+
+        if cfg!(feature = "integration_testing") {
+            return Ok(());
+        }
 
         match infrastructure::github::GithubSession::try_new() {
             Ok(github_session) => {
-                let github_url = github_session.add_token_to_url(&inner.codebase.url).await?;
+                // Locks should never go over awaits
+                let mut codebase_url: String = String::new();
+                {
+                    let guard = self.0.lock().await;
+                    guard.codebase.url.clone_into(&mut codebase_url)
+                }
+
+                let github_url = github_session.add_token_to_url(&codebase_url).await?;
                 tracing::warn!("Token added to codebase url");
+
+                let mut inner = self.0.lock().await;
                 inner.codebase.url = github_url;
             }
             Err(e) => {

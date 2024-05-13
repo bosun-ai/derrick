@@ -35,6 +35,8 @@ impl LocalTempSync {
         debug!(cmd = cmd, path = self.path(working_dir), "Running command");
         Command::new("bash")
             .args(["-c", cmd])
+            .env_clear()
+            .env("GIT_TERMINAL_PROMPT", "0")
             .current_dir(self.path(working_dir))
             .output()
     }
