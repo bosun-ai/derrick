@@ -78,12 +78,19 @@ impl Adapter for LocalTempSync {
                 .unwrap(),
         );
 
-        if let Some(working_dir) = working_dir {
-            base_path.push(working_dir);
+        let mut working_dir = std::path::PathBuf::from(working_dir.unwrap_or(""));
+
+        if working_dir.is_absolute() {
+            working_dir = working_dir
+                .strip_prefix("/")
+                .expect("Expected working_dir to be an absolute path, could not strip prefix '/'")
+                .to_path_buf();
         }
 
+        base_path.push(working_dir);
         base_path.to_str().unwrap().into()
     }
+
     #[tracing::instrument]
     async fn init(&self) -> Result<()> {
         self.path.get_or_init(|| {
@@ -95,7 +102,6 @@ impl Adapter for LocalTempSync {
         Ok(())
     }
 
-    // instrument but make sure the cmd is scrubbed
     #[tracing::instrument(fields(cmd = scrub(cmd)))]
     async fn cmd(&self, cmd: &str, working_dir: Option<&str>) -> Result<()> {
         self.spawn_cmd(cmd, working_dir)
@@ -103,7 +109,7 @@ impl Adapter for LocalTempSync {
             .map(|_| ())
     }
 
-    #[tracing::instrument(skip(self), fields(cmd = scrub(cmd)))]
+    #[tracing::instrument(fields(cmd = scrub(cmd)))]
     async fn cmd_with_output(&self, cmd: &str, working_dir: Option<&str>) -> Result<String> {
         self.spawn_cmd(cmd, working_dir)
             .map(handle_command_result)?
