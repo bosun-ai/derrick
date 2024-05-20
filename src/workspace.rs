@@ -48,6 +48,8 @@ impl Workspace {
         self.authenticate_with_repository_if_possible().await?;
         self.0.lock().await.adapter.init().await?;
 
+        self.configure_git().await?;
+
         if self.repository_exists().await {
             // Token might be outdated so lets update it
             self.update_remote().await?;
@@ -160,6 +162,48 @@ impl Workspace {
 
         for cmd in cmds {
             inner.adapter.cmd(cmd, None).await?;
+        }
+        Ok(())
+    }
+
+    #[tracing::instrument(skip_all, target = "bosun", name = "workspace.configure_git")]
+    async fn configure_git(&self) -> Result<()> {
+        if cfg!(feature = "integration_testing") {
+            return Ok(());
+        }
+
+        let inner = self.0.lock().await;
+        match infrastructure::github::GithubSession::try_new() {
+            Ok(github_session) => {
+                // https://github.com/orgs/community/discussions/24664
+                let user = github_session.user().await?;
+                let bot_email = format!("{}+{}@users.noreply.github.com", user.id, user.login);
+                let bot_username = user.login;
+                inner
+                    .adapter
+                    .cmd(
+                        format!("git config user.email \"{}\"", bot_email).as_str(),
+                        None,
+                    )
+                    .await?;
+                inner
+                    .adapter
+                    .cmd(
+                        format!("git config user.name \"{}\"", bot_username).as_str(),
+                        None,
+                    )
+                    .await?;
+            }
+            Err(_e) => {
+                inner
+                    .adapter
+                    .cmd("git config user.email \"swabbie@bosun.ai\"", None)
+                    .await?;
+                inner
+                    .adapter
+                    .cmd("git config user.name \"Swabbie\"", None)
+                    .await?;
+            }
         }
         Ok(())
     }

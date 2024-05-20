@@ -44,9 +44,11 @@ impl LocalTempSync {
             path = self.path(working_dir),
             "Running command"
         );
+        // let home = std::env::var("HOME").unwrap_or("/".to_string());
         Command::new("bash")
             .args(["-c", cmd])
             .env_clear()
+            // .env("HOME", home)
             .env("GIT_TERMINAL_PROMPT", "0")
             .current_dir(self.path(working_dir))
             .output()
@@ -99,6 +101,7 @@ impl Adapter for LocalTempSync {
                 .unwrap()
         });
         warn!(path = &self.path.get(), "Creating local temp directory");
+
         Ok(())
     }
 
