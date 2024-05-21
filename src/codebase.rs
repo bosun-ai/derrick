@@ -10,14 +10,8 @@ pub struct Codebase {
     pub coverage_command: Option<String>,
 }
 
-static RUST_EXTENSIONS: &[&str] = &["rs"];
-static TYPESCRIPT_EXTENSIONS: &[&str] = &["ts"];
-
 impl Codebase {
     pub fn supported_extensions(&self) -> &[&str] {
-        match self.lang {
-            SupportedLanguages::Rust => RUST_EXTENSIONS,
-            SupportedLanguages::Typescript => TYPESCRIPT_EXTENSIONS,
-        }
+        self.lang.file_extensions()
     }
 }
