@@ -37,14 +37,14 @@ pub struct WorkspaceService {
 
 struct WorkspaceServiceContext {
     workspace: Workspace,
-    channel: messaging::MessagingChannel,
+    channel: messaging::Channel,
 }
 
 impl WorkspaceService {
     pub async fn start(workspace: Workspace) -> Result<Self> {
-        let (channel, subscriber) =
-            messaging::MessagingChannel::establish("workspace".to_string()).await?;
+        let channel = messaging::Channel::establish("workspace".to_string()).await?;
         let subject = channel.channel_instance_subject.clone();
+        let subscriber = channel.subscribe().await?;
         let controller = WorkspaceServiceContext::run(channel, subscriber, workspace);
 
         Ok(Self {
@@ -68,7 +68,7 @@ type ResponseMessage = Result<serde_json::Value>;
 
 impl WorkspaceServiceContext {
     fn run(
-        channel: messaging::MessagingChannel,
+        channel: messaging::Channel,
         subscriber: Subscriber,
         workspace: Workspace,
     ) -> ServiceController {
