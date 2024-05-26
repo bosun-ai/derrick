@@ -14,8 +14,13 @@ uuid = { workspace = true }
 infrastructure = { path = "../infrastructure" }
 octocrab = { workspace = true }
 tokio = { workspace = true }
+tokio-util = { workspace = true }
 shell-escape = { workspace = true }
 regex = { workspace = true }
+futures-util = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+async-nats = { workspace = true }
 
 [dev-dependencies]
 test-log = { workspace = true }
