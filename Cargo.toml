@@ -16,6 +16,7 @@ octocrab = { workspace = true }
 tokio = { workspace = true }
 shell-escape = { workspace = true }
 regex = { workspace = true }
+models = { path = "../models" }
 
 [dev-dependencies]
 test-log = { workspace = true }
