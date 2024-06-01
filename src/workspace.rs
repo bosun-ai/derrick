@@ -1,6 +1,6 @@
 use crate::adapters::Adapter;
-use crate::Codebase;
 use anyhow::Result;
+use models::Repository;
 use octocrab::models::pulls::PullRequest;
 use shell_escape::escape as escape_cow;
 use std::fmt::Debug;
@@ -14,7 +14,7 @@ pub struct Workspace(Arc<Mutex<WorkspaceInner>>);
 #[derive(Debug)]
 pub struct WorkspaceInner {
     adapter: Box<dyn Adapter>,
-    pub codebase: Codebase,
+    pub repository: Repository,
 }
 
 fn escape(s: &str) -> String {
@@ -26,10 +26,10 @@ static MAIN_BRANCH_CMD: &str =
 
 impl Workspace {
     #[tracing::instrument]
-    pub fn new(adapter: Box<dyn Adapter>, codebase: &Codebase) -> Self {
+    pub fn new(adapter: Box<dyn Adapter>, repository: &Repository) -> Self {
         let inner = WorkspaceInner {
             adapter,
-            codebase: codebase.to_owned(),
+            repository: repository.to_owned(),
         };
 
         Self(Arc::new(Mutex::new(inner)))
@@ -38,7 +38,9 @@ impl Workspace {
     pub async fn full_path(&self) -> String {
         let inner = self.0.lock().await;
 
-        inner.adapter.path(inner.codebase.working_dir.as_deref())
+        inner
+            .adapter
+            .path(inner.repository.component.normalized_path())
     }
 
     #[tracing::instrument(skip_all, target = "bosun", name = "workspace.init")]
@@ -48,14 +50,14 @@ impl Workspace {
         self.authenticate_with_repository_if_possible().await?;
         self.0.lock().await.adapter.init().await?;
 
-        self.configure_git().await?;
-
         if self.repository_exists().await {
+            self.configure_git().await?;
             // Token might be outdated so lets update it
             self.update_remote().await?;
             self.clean_repository().await
         } else {
-            self.clone_repository().await
+            self.clone_repository().await?;
+            self.configure_git().await
         }
     }
 
@@ -65,15 +67,15 @@ impl Workspace {
 
         inner
             .adapter
-            .cmd(cmd, inner.codebase.working_dir.as_deref())
+            .cmd(cmd, inner.repository.component.normalized_path())
             .await
     }
 
-    pub async fn clone_codebase(&self) -> Codebase {
+    pub async fn repository(&self) -> Repository {
         // Clones it for now
         // Alternative is to return the MutexGuard
         let guard = self.0.lock().await;
-        guard.codebase.clone()
+        guard.repository.clone()
     }
 
     #[tracing::instrument(
@@ -88,7 +90,7 @@ impl Workspace {
 
         inner
             .adapter
-            .cmd_with_output(cmd, inner.codebase.working_dir.as_deref())
+            .cmd_with_output(cmd, inner.repository.component.normalized_path())
             .await
     }
 
@@ -103,7 +105,7 @@ impl Workspace {
 
         inner
             .adapter
-            .write_file(path, content, inner.codebase.working_dir.as_deref())
+            .write_file(path, content, inner.repository.component.normalized_path())
             .await
     }
 
@@ -113,7 +115,7 @@ impl Workspace {
 
         inner
             .adapter
-            .read_file(path, inner.codebase.working_dir.as_deref())
+            .read_file(path, inner.repository.component.normalized_path())
             .await
     }
 
@@ -131,7 +133,7 @@ impl Workspace {
     async fn clone_repository(&self) -> Result<()> {
         let inner = self.0.lock().await;
 
-        let url = escape(inner.codebase.url.as_str());
+        let url = escape(inner.repository.clone_url.as_str());
 
         inner
             .adapter
@@ -142,7 +144,7 @@ impl Workspace {
     #[tracing::instrument(skip_all, target = "bosun", name = "workspace.update_remote")]
     async fn update_remote(&self) -> Result<()> {
         let inner = self.0.lock().await;
-        let url = inner.codebase.url.clone();
+        let url = inner.repository.clone_url.clone();
 
         let cmd = format!("git remote set-url origin {}", escape(&url));
         inner.adapter.cmd(&cmd, None).await
@@ -222,14 +224,14 @@ impl Workspace {
                 let mut codebase_url: String = String::new();
                 {
                     let guard = self.0.lock().await;
-                    guard.codebase.url.clone_into(&mut codebase_url)
+                    guard.repository.clone_url.clone_into(&mut codebase_url)
                 }
 
                 let github_url = github_session.add_token_to_url(&codebase_url).await?;
                 tracing::warn!("Token added to codebase url");
 
                 let mut inner = self.0.lock().await;
-                inner.codebase.url = github_url;
+                inner.repository.clone_url = github_url;
             }
             Err(e) => {
                 tracing::warn!(error = ?e, "Could not authenticate with github, continuing anyway ...");
@@ -294,7 +296,7 @@ impl Workspace {
         branch_name: &str,
     ) -> Result<PullRequest> {
         let github_session = infrastructure::github::GithubSession::try_new()?;
-        let repo_url = self.0.lock().await.codebase.url.clone();
+        let repo_url = self.0.lock().await.repository.clone_url.clone();
         let main_branch = self
             .cmd_with_output(MAIN_BRANCH_CMD)
             .await?
