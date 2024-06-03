@@ -25,7 +25,7 @@ static MAIN_BRANCH_CMD: &str =
     "git symbolic-ref refs/remotes/origin/HEAD | sed 's@^refs/remotes/origin/@@'";
 
 impl Workspace {
-    #[tracing::instrument]
+    #[tracing::instrument(skip_all)]
     pub fn new(adapter: Box<dyn Adapter>, repository: &Repository) -> Self {
         let inner = WorkspaceInner {
             adapter,

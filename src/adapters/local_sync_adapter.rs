@@ -93,7 +93,7 @@ impl Adapter for LocalTempSync {
         base_path.to_str().unwrap().into()
     }
 
-    #[tracing::instrument]
+    #[tracing::instrument(skip_all)]
     async fn init(&self) -> Result<()> {
         self.path.get_or_init(|| {
             init_path(&self.name)
@@ -105,33 +105,33 @@ impl Adapter for LocalTempSync {
         Ok(())
     }
 
-    #[tracing::instrument(fields(cmd = scrub(cmd)))]
+    #[tracing::instrument(skip(self), fields(cmd = scrub(cmd)))]
     async fn cmd(&self, cmd: &str, working_dir: Option<&str>) -> Result<()> {
         self.spawn_cmd(cmd, working_dir)
             .map(handle_command_result)?
             .map(|_| ())
     }
 
-    #[tracing::instrument(fields(cmd = scrub(cmd)))]
+    #[tracing::instrument(skip(self), fields(cmd = scrub(cmd)))]
     async fn cmd_with_output(&self, cmd: &str, working_dir: Option<&str>) -> Result<String> {
         self.spawn_cmd(cmd, working_dir)
             .map(handle_command_result)?
     }
 
-    #[tracing::instrument]
+    #[tracing::instrument(skip_all)]
     async fn write_file(&self, file: &str, content: &str, working_dir: Option<&str>) -> Result<()> {
         std::fs::write(format!("{}/{}", &self.path(working_dir), file), content)
             .context("Could not write file")
     }
 
-    #[tracing::instrument]
+    #[tracing::instrument(skip_all)]
     async fn read_file(&self, file: &str, working_dir: Option<&str>) -> Result<String> {
         std::fs::read_to_string(format!("{}/{}", &self.path(working_dir), file))
             .context("Could not read file")
     }
 }
 
-#[tracing::instrument]
+#[tracing::instrument(skip_all)]
 fn handle_command_result(result: std::process::Output) -> Result<String> {
     let stdout = String::from_utf8_lossy(&result.stdout).to_string();
     let stderr = String::from_utf8_lossy(&result.stderr).to_string();
