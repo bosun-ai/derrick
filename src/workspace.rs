@@ -43,7 +43,7 @@ impl Workspace {
             .path(inner.repository.component.normalized_path())
     }
 
-    #[tracing::instrument(skip_all, target = "bosun", name = "workspace.init")]
+    #[tracing::instrument(skip_all, fields(bosun.tracing=true), name = "workspace.init")]
     pub async fn init(&self) -> Result<()> {
         info!("Initializing workspace");
 
@@ -61,7 +61,7 @@ impl Workspace {
         }
     }
 
-    #[tracing::instrument(skip(self), target = "bosun", name = "workspace.cmd", err, ret)]
+    #[tracing::instrument(skip(self), fields(bosun.tracing=true), name = "workspace.cmd", err, ret)]
     pub async fn cmd(&self, cmd: &str) -> Result<()> {
         let inner = self.0.lock().await;
 
@@ -79,8 +79,7 @@ impl Workspace {
     }
 
     #[tracing::instrument(
-        skip(self),
-        target = "bosun",
+        skip(self), fields(bosun.tracing=true),
         name = "workspace.cmd_with_output",
         err,
         ret
@@ -95,8 +94,7 @@ impl Workspace {
     }
 
     #[tracing::instrument(
-        skip(self, content),
-        target = "bosun",
+        skip(self, content), fields(bosun.tracing=true),
         name = "workspace.write_file",
         err
     )]
@@ -109,7 +107,7 @@ impl Workspace {
             .await
     }
 
-    #[tracing::instrument(skip(self), target = "bosun", name = "workspace.read_file", err)]
+    #[tracing::instrument(skip(self), fields(bosun.tracing=true), name = "workspace.read_file", err)]
     pub async fn read_file(&self, path: &str) -> Result<String> {
         let inner = self.0.lock().await;
 
@@ -122,14 +120,14 @@ impl Workspace {
     // TODO: All the git commands should be pushed to the adapters so that there is a well defined
     // interface for interacting with git that can be controlled by the adapters.
 
-    #[tracing::instrument(skip_all, target = "bosun", name = "workspace.repository_exists")]
+    #[tracing::instrument(skip_all, fields(bosun.tracing=true), name = "workspace.repository_exists")]
     async fn repository_exists(&self) -> bool {
         let inner = self.0.lock().await;
 
         inner.adapter.cmd("ls -A .git", None).await.is_ok()
     }
 
-    #[tracing::instrument(skip_all, target = "bosun", name = "workspace.clone_repository")]
+    #[tracing::instrument(skip_all, fields(bosun.tracing=true), name = "workspace.clone_repository")]
     async fn clone_repository(&self) -> Result<()> {
         let inner = self.0.lock().await;
 
@@ -141,7 +139,7 @@ impl Workspace {
             .await
     }
 
-    #[tracing::instrument(skip_all, target = "bosun", name = "workspace.update_remote")]
+    #[tracing::instrument(skip_all, fields(bosun.tracing=true), name = "workspace.update_remote")]
     async fn update_remote(&self) -> Result<()> {
         let inner = self.0.lock().await;
         let url = inner.repository.clone_url.clone();
@@ -150,7 +148,7 @@ impl Workspace {
         inner.adapter.cmd(&cmd, None).await
     }
 
-    #[tracing::instrument(skip_all, target = "bosun", name = "workspace.clean_repository")]
+    #[tracing::instrument(skip_all, fields(bosun.tracing=true), name = "workspace.clean_repository")]
     async fn clean_repository(&self) -> Result<()> {
         let inner = self.0.lock().await;
 
@@ -168,7 +166,7 @@ impl Workspace {
         Ok(())
     }
 
-    #[tracing::instrument(skip_all, target = "bosun", name = "workspace.configure_git")]
+    #[tracing::instrument(skip_all, fields(bosun.tracing=true), name = "workspace.configure_git")]
     async fn configure_git(&self) -> Result<()> {
         if cfg!(feature = "integration_testing") {
             return Ok(());
