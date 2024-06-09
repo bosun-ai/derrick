@@ -2,7 +2,7 @@ use crate::adapters::Adapter;
 use anyhow::{Context, Result};
 use async_trait::async_trait;
 use regex;
-use std::fmt::Debug;
+use std::path::PathBuf;
 use std::process::Command;
 use std::sync::OnceLock;
 use tracing::{debug, warn};
@@ -34,14 +34,13 @@ impl LocalTempSync {
         }
     }
 
-    fn spawn_cmd(
-        &self,
-        cmd: &str,
-        working_dir: Option<&str>,
-    ) -> std::result::Result<std::process::Output, std::io::Error> {
+    fn spawn_cmd(&self, cmd: &str, working_dir: Option<&str>) -> Result<std::process::Output> {
         debug!(
             cmd = scrub(cmd),
-            path = self.path(working_dir),
+            path = self
+                .path(working_dir)
+                .to_str()
+                .context("Could not convert path to string")?,
             "Running command"
         );
         // let home = std::env::var("HOME").unwrap_or("/".to_string());
@@ -52,6 +51,7 @@ impl LocalTempSync {
             .env("GIT_TERMINAL_PROMPT", "0")
             .current_dir(self.path(working_dir))
             .output()
+            .context("Could not run command")
     }
 }
 
@@ -72,7 +72,7 @@ fn init_path(name: &str) -> Result<String> {
 
 #[async_trait]
 impl Adapter for LocalTempSync {
-    fn path(&self, working_dir: Option<&str>) -> String {
+    fn path(&self, working_dir: Option<&str>) -> PathBuf {
         let mut base_path = std::path::PathBuf::from(
             self.path
                 .get()
@@ -90,7 +90,7 @@ impl Adapter for LocalTempSync {
         }
 
         base_path.push(working_dir);
-        base_path.to_str().unwrap().into()
+        base_path
     }
 
     #[tracing::instrument(skip_all)]
@@ -120,14 +120,19 @@ impl Adapter for LocalTempSync {
 
     #[tracing::instrument(skip_all)]
     async fn write_file(&self, file: &str, content: &str, working_dir: Option<&str>) -> Result<()> {
-        std::fs::write(format!("{}/{}", &self.path(working_dir), file), content)
-            .context("Could not write file")
+        let path = self.path(working_dir).as_path().join(file);
+
+        // Create directory if it doesn't exist
+        if let Some(parent) = path.parent() {
+            let _ = std::fs::create_dir_all(parent).context("Could not create directory")?;
+        }
+        std::fs::write(path, content).context("Could not write file")
     }
 
     #[tracing::instrument(skip_all)]
     async fn read_file(&self, file: &str, working_dir: Option<&str>) -> Result<String> {
-        std::fs::read_to_string(format!("{}/{}", &self.path(working_dir), file))
-            .context("Could not read file")
+        let path = self.path(working_dir).as_path().join(file);
+        std::fs::read_to_string(path).context("Could not read file")
     }
 }
 
@@ -177,7 +182,10 @@ mod tests {
         let stdout = String::from_utf8_lossy(&output.stdout).to_string();
 
         assert!(stdout.contains("tmp/test/subdir"));
-        assert!(adapter.path(Some("subdir")).contains("tmp/test/subdir"));
+        assert!(adapter
+            .path(Some("subdir"))
+            .to_string_lossy()
+            .contains("tmp/test/subdir"));
     }
 
     #[test]
@@ -194,8 +202,7 @@ mod tests {
         let adapter = LocalTempSync::new("test");
         let result = adapter.init().await;
         assert!(result.is_ok());
-        let str_path = adapter.path(None).to_string();
-        let path = std::path::Path::new(&str_path);
+        let path = adapter.path(None);
         assert!(path.exists());
     }
 
@@ -246,5 +253,44 @@ mod tests {
         let result = adapter.cmd_with_output("cat write.txt", None).await;
         assert!(result.is_ok());
         assert_eq!(result.unwrap(), "Hello, back!");
+    }
+
+    #[tokio::test]
+    async fn test_reading_file_with_nextjs_style_path() {
+        let adapter = LocalTempSync::new("test");
+        let path = "(unauthenticated)/[slug]/index.tsx";
+
+        adapter.init().await.unwrap();
+        adapter
+            .write_file(path, "Hello, world!", None)
+            .await
+            .expect("Could not write file");
+        let result = adapter
+            .read_file(path, None)
+            .await
+            .expect("Could not read file");
+        assert_eq!(result, "Hello, world!");
+    }
+
+    #[tokio::test]
+    async fn test_it_should_write_and_read_newlines_and_other_weird_characters() {
+        let adapter = LocalTempSync::new("weird_characters");
+        adapter.init().await.unwrap();
+        adapter
+            .write_file("write.txt", "Hello, world!\n", None)
+            .await
+            .expect("Could not write file");
+
+        let result = adapter.read_file("write.txt", None).await.unwrap();
+        assert_eq!(result, "Hello, world!\n");
+
+        // And unicode characters
+        adapter
+            .write_file("write.txt", "Hello, 🌍!\n", None)
+            .await
+            .expect("Could not write file");
+
+        let result = adapter.read_file("write.txt", None).await.unwrap();
+        assert_eq!(result, "Hello, 🌍!\n");
     }
 }

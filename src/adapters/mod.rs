@@ -1,3 +1,5 @@
+use std::path::PathBuf;
+
 use anyhow::Result;
 use async_trait::async_trait;
 
@@ -14,5 +16,5 @@ pub trait Adapter: Send + Sync + std::fmt::Debug {
     async fn cmd_with_output(&self, cmd: &str, working_dir: Option<&str>) -> Result<String>;
     async fn write_file(&self, path: &str, content: &str, working_dir: Option<&str>) -> Result<()>;
     async fn read_file(&self, path: &str, working_dir: Option<&str>) -> Result<String>;
-    fn path(&self, working_dir: Option<&str>) -> String;
+    fn path(&self, working_dir: Option<&str>) -> PathBuf;
 }

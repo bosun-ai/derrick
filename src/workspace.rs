@@ -4,6 +4,7 @@ use models::Repository;
 use octocrab::models::pulls::PullRequest;
 use shell_escape::escape as escape_cow;
 use std::fmt::Debug;
+use std::path::PathBuf;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 use tracing::info;
@@ -35,7 +36,7 @@ impl Workspace {
         Self(Arc::new(Mutex::new(inner)))
     }
 
-    pub async fn full_path(&self) -> String {
+    pub async fn full_path(&self) -> PathBuf {
         let inner = self.0.lock().await;
 
         inner
