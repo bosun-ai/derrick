@@ -2,11 +2,13 @@ use crate::adapters::Adapter;
 use anyhow::{Context, Result};
 use async_trait::async_trait;
 use regex;
-use std::path::PathBuf;
 use std::process::Command;
 use std::sync::OnceLock;
+use std::{collections::HashMap, path::PathBuf};
+use tokio::sync::RwLock;
 use tracing::{debug, warn};
 
+const ALLOWED_ENV: &[&str] = &["PATH", "CARGO_HOME", "RUST_HOME", "RUST_VERSION"];
 // Runs commands in a local temporary directory
 // Useful for debugging, testing and experimentation
 //
@@ -17,6 +19,7 @@ use tracing::{debug, warn};
 pub struct LocalTempSync {
     name: String,
     path: OnceLock<String>,
+    whitelisted_env: RwLock<HashMap<String, String>>,
 }
 
 // scrub removes x-access-token:<token> from a string like x-access-token:1234@github.com
@@ -31,10 +34,16 @@ impl LocalTempSync {
         Self {
             name: name.into(),
             path: OnceLock::new(),
+            whitelisted_env: Default::default(),
         }
     }
 
-    fn spawn_cmd(&self, cmd: &str, working_dir: Option<&str>) -> Result<std::process::Output> {
+    fn spawn_cmd(
+        &self,
+        cmd: &str,
+        working_dir: Option<&str>,
+        envs: &HashMap<String, String>,
+    ) -> Result<std::process::Output> {
         debug!(
             cmd = scrub(cmd),
             path = self
@@ -43,11 +52,10 @@ impl LocalTempSync {
                 .context("Could not convert path to string")?,
             "Running command"
         );
-        // let home = std::env::var("HOME").unwrap_or("/".to_string());
         Command::new("bash")
             .args(["-c", cmd])
             .env_clear()
-            // .env("HOME", home)
+            .envs(envs)
             .env("GIT_TERMINAL_PROMPT", "0")
             .current_dir(self.path(working_dir))
             .output()
@@ -102,19 +110,28 @@ impl Adapter for LocalTempSync {
         });
         warn!(path = &self.path.get(), "Creating local temp directory");
 
+        let mut whitelisted_env = self.whitelisted_env.write().await;
+        for (key, value) in std::env::vars() {
+            if ALLOWED_ENV.contains(&key.as_str()) {
+                whitelisted_env.insert(key, value);
+            }
+        }
+
         Ok(())
     }
 
     #[tracing::instrument(skip(self), fields(cmd = scrub(cmd)))]
     async fn cmd(&self, cmd: &str, working_dir: Option<&str>) -> Result<()> {
-        self.spawn_cmd(cmd, working_dir)
+        let envs = self.whitelisted_env.read().await.clone();
+        self.spawn_cmd(cmd, working_dir, &envs)
             .map(handle_command_result)?
             .map(|_| ())
     }
 
     #[tracing::instrument(skip(self), fields(cmd = scrub(cmd)))]
     async fn cmd_with_output(&self, cmd: &str, working_dir: Option<&str>) -> Result<String> {
-        self.spawn_cmd(cmd, working_dir)
+        let envs = self.whitelisted_env.read().await.clone();
+        self.spawn_cmd(cmd, working_dir, &envs)
             .map(handle_command_result)?
     }
 
@@ -168,7 +185,7 @@ mod tests {
     async fn test_sets_path_correctly_for_run_cmd() {
         let adapter = LocalTempSync::new("test");
         adapter.init().await.unwrap();
-        let output = adapter.spawn_cmd("pwd", None).unwrap();
+        let output = adapter.spawn_cmd("pwd", None, &Default::default()).unwrap();
         let stdout = String::from_utf8_lossy(&output.stdout).to_string();
         assert!(stdout.contains("tmp/test"));
     }
@@ -177,8 +194,12 @@ mod tests {
     async fn test_working_dir() {
         let adapter = LocalTempSync::new("test");
         adapter.init().await.unwrap();
-        adapter.spawn_cmd("mkdir subdir", None).unwrap();
-        let output = adapter.spawn_cmd("pwd", Some("subdir")).unwrap();
+        adapter
+            .spawn_cmd("mkdir subdir", None, &Default::default())
+            .unwrap();
+        let output = adapter
+            .spawn_cmd("pwd", Some("subdir"), &Default::default())
+            .unwrap();
         let stdout = String::from_utf8_lossy(&output.stdout).to_string();
 
         assert!(stdout.contains("tmp/test/subdir"));
@@ -292,5 +313,31 @@ mod tests {
 
         let result = adapter.read_file("write.txt", None).await.unwrap();
         assert_eq!(result, "Hello, 🌍!\n");
+    }
+
+    #[tokio::test]
+    async fn test_it_should_allow_whitelisted_env_variables() {
+        let adapter = LocalTempSync::new("whitelisted_env");
+        adapter.init().await.unwrap();
+
+        let env = adapter.cmd_with_output("printenv", None).await.unwrap();
+
+        // In tests we only have path available, so just check that
+        // We cannot reliably set env variables in test to to multithreading
+        assert!(env.contains("PATH"));
+
+        // And it should not contain any other env variables
+        env.lines().for_each(|line| {
+            let key = line.split('=').next().unwrap();
+            // Stupid vars always present in subprocesses
+            if ["PWD", "SHLVL", "GIT_TERMINAL_PROMPT", "_"].contains(&key) {
+                return;
+            }
+            assert!(
+                ALLOWED_ENV.contains(&key),
+                "Unexpected env variable: {}",
+                key
+            );
+        });
     }
 }
