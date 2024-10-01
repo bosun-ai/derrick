@@ -4,5 +4,4 @@ pub mod service;
 pub mod workspace;
 
 pub use adapters::Adapter;
-pub use codebase::Codebase;
 pub use workspace::Workspace;

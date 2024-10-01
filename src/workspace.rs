@@ -1,9 +1,10 @@
 use crate::adapters::Adapter;
-use crate::Codebase;
 use anyhow::Result;
+use models::Repository;
 use octocrab::models::pulls::PullRequest;
 use shell_escape::escape as escape_cow;
 use std::fmt::Debug;
+use std::path::PathBuf;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 use tracing::info;
@@ -14,7 +15,7 @@ pub struct Workspace(Arc<Mutex<WorkspaceInner>>);
 #[derive(Debug)]
 pub struct WorkspaceInner {
     adapter: Box<dyn Adapter>,
-    pub codebase: Codebase,
+    pub repository: Repository,
 }
 
 fn escape(s: &str) -> String {
@@ -25,60 +26,61 @@ static MAIN_BRANCH_CMD: &str =
     "git symbolic-ref refs/remotes/origin/HEAD | sed 's@^refs/remotes/origin/@@'";
 
 impl Workspace {
-    #[tracing::instrument]
-    pub fn new(adapter: Box<dyn Adapter>, codebase: &Codebase) -> Self {
+    #[tracing::instrument(skip_all)]
+    pub fn new(adapter: Box<dyn Adapter>, repository: &Repository) -> Self {
         let inner = WorkspaceInner {
             adapter,
-            codebase: codebase.to_owned(),
+            repository: repository.to_owned(),
         };
 
         Self(Arc::new(Mutex::new(inner)))
     }
 
-    pub async fn full_path(&self) -> String {
+    pub async fn full_path(&self) -> PathBuf {
         let inner = self.0.lock().await;
 
-        inner.adapter.path(inner.codebase.working_dir.as_deref())
+        inner
+            .adapter
+            .path(inner.repository.component.normalized_path())
     }
 
-    #[tracing::instrument(skip_all, target = "bosun", name = "workspace.init")]
+    #[tracing::instrument(skip_all, fields(bosun.tracing=true), name = "workspace.init")]
     pub async fn init(&self) -> Result<()> {
         info!("Initializing workspace");
 
         self.authenticate_with_repository_if_possible().await?;
         self.0.lock().await.adapter.init().await?;
 
-        self.configure_git().await?;
-
         if self.repository_exists().await {
+            self.configure_git().await?;
             // Token might be outdated so lets update it
             self.update_remote().await?;
             self.clean_repository().await
         } else {
-            self.clone_repository().await
+            self.clone_repository().await?;
+            self.configure_git().await
         }
     }
 
-    #[tracing::instrument(skip(self), target = "bosun", name = "workspace.cmd", err, ret)]
+    #[tracing::instrument(skip(self), fields(bosun.tracing=true), name = "workspace.cmd", err, ret)]
     pub async fn cmd(&self, cmd: &str) -> Result<()> {
         let inner = self.0.lock().await;
 
         inner
             .adapter
-            .cmd(cmd, inner.codebase.working_dir.as_deref())
+            .cmd(cmd, inner.repository.component.normalized_path())
             .await
     }
 
-    pub async fn clone_codebase(&self) -> Codebase {
+    pub async fn repository(&self) -> Repository {
         // Clones it for now
         // Alternative is to return the MutexGuard
         let guard = self.0.lock().await;
-        guard.codebase.clone()
+        guard.repository.clone()
     }
 
     #[tracing::instrument(
-        skip(self),
-        target = "bosun",
+        skip(self), fields(bosun.tracing=true),
         name = "workspace.cmd_with_output",
         err,
         ret
@@ -88,13 +90,12 @@ impl Workspace {
 
         inner
             .adapter
-            .cmd_with_output(cmd, inner.codebase.working_dir.as_deref())
+            .cmd_with_output(cmd, inner.repository.component.normalized_path())
             .await
     }
 
     #[tracing::instrument(
-        skip(self, content),
-        target = "bosun",
+        skip(self, content), fields(bosun.tracing=true),
         name = "workspace.write_file",
         err
     )]
@@ -103,35 +104,35 @@ impl Workspace {
 
         inner
             .adapter
-            .write_file(path, content, inner.codebase.working_dir.as_deref())
+            .write_file(path, content, inner.repository.component.normalized_path())
             .await
     }
 
-    #[tracing::instrument(skip(self), target = "bosun", name = "workspace.read_file", err)]
+    #[tracing::instrument(skip(self), fields(bosun.tracing=true), name = "workspace.read_file", err)]
     pub async fn read_file(&self, path: &str) -> Result<String> {
         let inner = self.0.lock().await;
 
         inner
             .adapter
-            .read_file(path, inner.codebase.working_dir.as_deref())
+            .read_file(path, inner.repository.component.normalized_path())
             .await
     }
 
     // TODO: All the git commands should be pushed to the adapters so that there is a well defined
     // interface for interacting with git that can be controlled by the adapters.
 
-    #[tracing::instrument(skip_all, target = "bosun", name = "workspace.repository_exists")]
+    #[tracing::instrument(skip_all, fields(bosun.tracing=true), name = "workspace.repository_exists")]
     async fn repository_exists(&self) -> bool {
         let inner = self.0.lock().await;
 
         inner.adapter.cmd("ls -A .git", None).await.is_ok()
     }
 
-    #[tracing::instrument(skip_all, target = "bosun", name = "workspace.clone_repository")]
+    #[tracing::instrument(skip_all, fields(bosun.tracing=true), name = "workspace.clone_repository")]
     async fn clone_repository(&self) -> Result<()> {
         let inner = self.0.lock().await;
 
-        let url = escape(inner.codebase.url.as_str());
+        let url = escape(inner.repository.clone_url.as_str());
 
         inner
             .adapter
@@ -139,16 +140,16 @@ impl Workspace {
             .await
     }
 
-    #[tracing::instrument(skip_all, target = "bosun", name = "workspace.update_remote")]
+    #[tracing::instrument(skip_all, fields(bosun.tracing=true), name = "workspace.update_remote")]
     async fn update_remote(&self) -> Result<()> {
         let inner = self.0.lock().await;
-        let url = inner.codebase.url.clone();
+        let url = inner.repository.clone_url.clone();
 
         let cmd = format!("git remote set-url origin {}", escape(&url));
         inner.adapter.cmd(&cmd, None).await
     }
 
-    #[tracing::instrument(skip_all, target = "bosun", name = "workspace.clean_repository")]
+    #[tracing::instrument(skip_all, fields(bosun.tracing=true), name = "workspace.clean_repository")]
     async fn clean_repository(&self) -> Result<()> {
         let inner = self.0.lock().await;
 
@@ -166,7 +167,7 @@ impl Workspace {
         Ok(())
     }
 
-    #[tracing::instrument(skip_all, target = "bosun", name = "workspace.configure_git")]
+    #[tracing::instrument(skip_all, fields(bosun.tracing=true), name = "workspace.configure_git")]
     async fn configure_git(&self) -> Result<()> {
         if cfg!(feature = "integration_testing") {
             return Ok(());
@@ -222,14 +223,14 @@ impl Workspace {
                 let mut codebase_url: String = String::new();
                 {
                     let guard = self.0.lock().await;
-                    guard.codebase.url.clone_into(&mut codebase_url)
+                    guard.repository.clone_url.clone_into(&mut codebase_url)
                 }
 
                 let github_url = github_session.add_token_to_url(&codebase_url).await?;
                 tracing::warn!("Token added to codebase url");
 
                 let mut inner = self.0.lock().await;
-                inner.codebase.url = github_url;
+                inner.repository.clone_url = github_url;
             }
             Err(e) => {
                 tracing::warn!(error = ?e, "Could not authenticate with github, continuing anyway ...");
@@ -294,7 +295,7 @@ impl Workspace {
         branch_name: &str,
     ) -> Result<PullRequest> {
         let github_session = infrastructure::github::GithubSession::try_new()?;
-        let repo_url = self.0.lock().await.codebase.url.clone();
+        let repo_url = self.0.lock().await.repository.clone_url.clone();
         let main_branch = self
             .cmd_with_output(MAIN_BRANCH_CMD)
             .await?
