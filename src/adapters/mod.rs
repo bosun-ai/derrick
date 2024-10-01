@@ -11,6 +11,8 @@ pub use testing_adapter::TestingAdapter;
 
 mod remote_nats_adapter;
 pub use remote_nats_adapter::RemoteNatsAdapter;
+mod docker_adapter;
+pub use docker_adapter::DockerAdapter;
 
 #[async_trait]
 pub trait Adapter: Send + Sync + std::fmt::Debug {
