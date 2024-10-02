@@ -1,4 +1,4 @@
-use crate::adapters::Adapter;
+use crate::workspace_controllers::WorkspaceController;
 use anyhow::{Context, Result};
 // use async_nats::jetstream::response;
 use crate::messaging;
@@ -11,14 +11,14 @@ use tracing::{debug, warn};
 
 // Runs commands on a remote workspace using nats
 #[derive(Debug)]
-pub struct RemoteNatsAdapter {
+pub struct RemoteNatsController {
     name: String,
     path: OnceLock<String>,
     channel: OnceLock<messaging::Channel>,
     subscriber: OnceLock<messaging::Subscriber>,
 }
 
-impl RemoteNatsAdapter {
+impl RemoteNatsController {
     #[tracing::instrument]
     pub fn new(name: &str) -> Self {
         Self {
@@ -62,7 +62,7 @@ impl RemoteNatsAdapter {
 }
 
 #[async_trait]
-impl Adapter for RemoteNatsAdapter {
+impl WorkspaceController for RemoteNatsController {
     #[tracing::instrument]
     async fn init(&self) -> Result<()> {
         let channel = messaging::Channel::establish("workspace.init".to_string()).await?;

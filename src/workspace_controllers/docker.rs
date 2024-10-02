@@ -7,19 +7,19 @@ use bollard::image::CreateImageOptions;
 use futures_util::stream::StreamExt;
 use futures_util::TryStreamExt;
 
-use crate::Adapter;
+use crate::WorkspaceController;
 use anyhow::Result;
 
 static IMAGE: &str = "alpine:latest";
 
 #[derive(Debug)]
-pub struct DockerAdapter {
+pub struct DockerController {
     docker: Option<Docker>,
     container_id: Option<String>,
 }
 
 #[async_trait]
-impl Adapter for DockerAdapter {
+impl WorkspaceController for DockerController {
     async fn init(&self) -> Result<()> {
         // Can also connect over http or tls
         let docker = Docker::connect_with_socket_defaults().unwrap();
@@ -106,7 +106,7 @@ impl Adapter for DockerAdapter {
     }
 }
 
-impl Drop for DockerAdapter {
+impl Drop for DockerController {
     fn drop(&mut self) {
         let Some(container_id) = self.container_id.take() else {
             return;

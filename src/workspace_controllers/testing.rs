@@ -1,4 +1,4 @@
-use crate::adapters::Adapter;
+use crate::workspace_controllers::WorkspaceController;
 use anyhow::{Context, Result};
 use async_trait::async_trait;
 use rand::Rng;
@@ -13,11 +13,11 @@ use tracing::{debug, warn};
 //  - might be useful to drop the directory after out of scope
 //  - haven't decided what to do with stdout/stderr
 #[derive(Debug)]
-pub struct TestingAdapter {
+pub struct TestingController {
     path: String,
 }
 
-impl TestingAdapter {
+impl TestingController {
     #[tracing::instrument]
     pub fn new(name: &str) -> Self {
         let path = init_path(name)
@@ -69,7 +69,7 @@ fn init_path(name: &str) -> Result<String> {
 }
 
 // Clean up the temporary directory when the adapter is dropped
-impl Drop for TestingAdapter {
+impl Drop for TestingController {
     #[tracing::instrument]
     fn drop(&mut self) {
         warn!(path = &self.path, "Deleting local temp directory");
@@ -78,7 +78,7 @@ impl Drop for TestingAdapter {
 }
 
 #[async_trait]
-impl Adapter for TestingAdapter {
+impl WorkspaceController for TestingController {
     #[tracing::instrument]
     async fn init(&self) -> Result<()> {
         warn!(path = &self.path, "Creating local temp directory");
@@ -136,7 +136,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_cmd_with_output() {
-        let adapter = TestingAdapter::new("test");
+        let adapter = TestingController::new("test");
         adapter.init().await.unwrap();
         let result = adapter.cmd_with_output("pwd", None).await;
         assert!(result.is_ok());
@@ -146,7 +146,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_sets_path_correctly_for_run_cmd() {
-        let adapter = TestingAdapter::new("test");
+        let adapter = TestingController::new("test");
         adapter.init().await.unwrap();
         let output = adapter.spawn_cmd("pwd").unwrap();
         let stdout = String::from_utf8_lossy(&output.stdout).to_string();
@@ -164,7 +164,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_init() {
-        let adapter = TestingAdapter::new("test");
+        let adapter = TestingController::new("test");
         let result = adapter.init().await;
         assert!(result.is_ok());
         let path = std::path::Path::new(&adapter.path);
@@ -173,7 +173,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_cmd_valid() {
-        let adapter = TestingAdapter::new("test");
+        let adapter = TestingController::new("test");
         adapter.init().await.unwrap();
         let result = adapter.cmd("ls", None).await;
         println!("{:#?}", result);
@@ -182,7 +182,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_piping_a_command() {
-        let adapter = TestingAdapter::new("test");
+        let adapter = TestingController::new("test");
         adapter.init().await.unwrap();
         adapter.cmd("echo 'hello' > test.txt", None).await.unwrap();
         // check if file was created
@@ -192,7 +192,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_writing_file() {
-        let adapter = TestingAdapter::new("test");
+        let adapter = TestingController::new("test");
         adapter.init().await.unwrap();
         adapter
             .write_file("test.txt", "Hello, world!", None)

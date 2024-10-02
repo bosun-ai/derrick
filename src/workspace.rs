@@ -1,4 +1,4 @@
-use crate::adapters::Adapter;
+use crate::workspace_controllers::WorkspaceController;
 use crate::repository::Repository;
 use anyhow::Result;
 use octocrab::models::pulls::PullRequest;
@@ -13,7 +13,7 @@ pub struct Workspace(Arc<Mutex<WorkspaceInner>>);
 
 #[derive(Debug)]
 pub struct WorkspaceInner {
-    adapter: Box<dyn Adapter>,
+    adapter: Box<dyn WorkspaceController>,
     pub repository: Repository,
 }
 
@@ -26,7 +26,7 @@ static MAIN_BRANCH_CMD: &str =
 
 impl Workspace {
     #[tracing::instrument(skip_all)]
-    pub fn new(adapter: Box<dyn Adapter>, repository: &Repository) -> Self {
+    pub fn new(adapter: Box<dyn WorkspaceController>, repository: &Repository) -> Self {
         let inner = WorkspaceInner {
             adapter,
             repository: repository.to_owned(),

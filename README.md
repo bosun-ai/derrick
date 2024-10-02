@@ -31,7 +31,7 @@ should be responsible for setting up the workspace before the agent gets access 
 
 ## Technical design
 
-The provider is started with the following arguments:
+The workspace provider is started with the following arguments:
 
   - provisioning mode (e.g. local, docker, cloud)
   - repositories and their target paths, and authentication tokens

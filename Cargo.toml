@@ -1,5 +1,5 @@
 [package]
-name = "workspace"
+name = "workspace-provider"
 version = "0.1.0"
 edition = "2021"
 
@@ -26,6 +26,7 @@ rand = "0.8.5"
 uuid = { version = "1.8.0", features = ["v4", "serde"] }
 shell-escape = "0.1.5"
 octocrab = "0.38.0"
+clap = "4.5.19"
 
 [dev-dependencies]
 regex = "1.10.4"

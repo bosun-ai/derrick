@@ -1,4 +1,4 @@
-use crate::adapters::Adapter;
+use crate::workspace_controllers::WorkspaceController;
 use anyhow::{Context, Result};
 use async_trait::async_trait;
 use regex;
@@ -16,7 +16,7 @@ const ALLOWED_ENV: &[&str] = &["PATH", "CARGO_HOME", "RUST_HOME", "RUST_VERSION"
 //  - might be useful to drop the directory after out of scope
 //  - haven't decided what to do with stdout/stderr
 #[derive(Debug)]
-pub struct LocalTempSync {
+pub struct LocalTempSyncController {
     name: String,
     path: OnceLock<String>,
     whitelisted_env: RwLock<HashMap<String, String>>,
@@ -28,7 +28,7 @@ fn scrub(output: &str) -> String {
     re.replace_all(output, "x-access-token:***@").to_string()
 }
 
-impl LocalTempSync {
+impl LocalTempSyncController {
     #[tracing::instrument]
     pub fn new(name: &str) -> Self {
         Self {
@@ -99,7 +99,7 @@ fn init_path(name: &str) -> Result<String> {
 }
 
 #[async_trait]
-impl Adapter for LocalTempSync {
+impl WorkspaceController for LocalTempSyncController {
     #[tracing::instrument(skip_all)]
     async fn init(&self) -> Result<()> {
         self.path.get_or_init(|| {
@@ -172,7 +172,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_cmd_with_output() {
-        let adapter = LocalTempSync::new("test");
+        let adapter = LocalTempSyncController::new("test");
         adapter.init().await.unwrap();
         let result = adapter.cmd_with_output("pwd", None).await;
         assert!(result.is_ok());
@@ -182,7 +182,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_sets_path_correctly_for_run_cmd() {
-        let adapter = LocalTempSync::new("test");
+        let adapter = LocalTempSyncController::new("test");
         adapter.init().await.unwrap();
         let output = adapter.spawn_cmd("pwd", None, &Default::default()).unwrap();
         let stdout = String::from_utf8_lossy(&output.stdout).to_string();
@@ -191,7 +191,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_working_dir() {
-        let adapter = LocalTempSync::new("test");
+        let adapter = LocalTempSyncController::new("test");
         adapter.init().await.unwrap();
         adapter
             .spawn_cmd("mkdir subdir", None, &Default::default())
@@ -219,7 +219,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_init() {
-        let adapter = LocalTempSync::new("test");
+        let adapter = LocalTempSyncController::new("test");
         let result = adapter.init().await;
         assert!(result.is_ok());
         let path = adapter.path(None);
@@ -228,7 +228,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_cmd_valid() {
-        let adapter = LocalTempSync::new("test");
+        let adapter = LocalTempSyncController::new("test");
         adapter.init().await.unwrap();
         let result = adapter.cmd("ls", None).await;
         println!("{:#?}", result);
@@ -237,7 +237,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_cmd_invalid() {
-        let adapter = LocalTempSync::new("test");
+        let adapter = LocalTempSyncController::new("test");
         adapter.init().await.unwrap();
         let result = adapter.cmd("invalid command", None).await;
         assert!(result.is_err());
@@ -245,7 +245,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_piping_a_command() {
-        let adapter = LocalTempSync::new("test");
+        let adapter = LocalTempSyncController::new("test");
         adapter.init().await.unwrap();
         adapter.cmd("echo 'hello' > test.txt", None).await.unwrap();
         // check if file was created
@@ -256,7 +256,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_writing_file() {
-        let adapter = LocalTempSync::new("test");
+        let adapter = LocalTempSyncController::new("test");
         adapter.init().await.unwrap();
         adapter
             .write_file("write.txt", "Hello, world!", None)
@@ -277,7 +277,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_reading_file_with_nextjs_style_path() {
-        let adapter = LocalTempSync::new("test");
+        let adapter = LocalTempSyncController::new("test");
         let path = "(unauthenticated)/[slug]/index.tsx";
 
         adapter.init().await.unwrap();
@@ -294,7 +294,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_it_should_write_and_read_newlines_and_other_weird_characters() {
-        let adapter = LocalTempSync::new("weird_characters");
+        let adapter = LocalTempSyncController::new("weird_characters");
         adapter.init().await.unwrap();
         adapter
             .write_file("write.txt", "Hello, world!\n", None)
@@ -316,7 +316,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_it_should_allow_whitelisted_env_variables() {
-        let adapter = LocalTempSync::new("whitelisted_env");
+        let adapter = LocalTempSyncController::new("whitelisted_env");
         adapter.init().await.unwrap();
 
         let env = adapter.cmd_with_output("printenv", None).await.unwrap();
