@@ -2,8 +2,8 @@ use crate::adapters::Adapter;
 use anyhow::{Context, Result};
 use async_trait::async_trait;
 use rand::Rng;
+use std::fmt::Debug;
 use std::process::Command;
-use std::{fmt::Debug};
 use tracing::{debug, warn};
 
 // Runs commands in a local temporary directory

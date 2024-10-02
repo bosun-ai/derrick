@@ -58,17 +58,11 @@ impl Repository {
     /// ```
     pub fn huuid(&self) -> String {
         if cfg!(feature = "integration_testing") {
-            return format!(
-                "test-{}",
-                self.full_name.replace(['/', ':'], "-")
-            );
+            return format!("test-{}", self.full_name.replace(['/', ':'], "-"));
         }
-        format!(
-            "{}",
-            self.full_name.replace(['/', ':'], "-")
-        )
-        .trim_end_matches('-')
-        .to_string()
+        format!("{}", self.full_name.replace(['/', ':'], "-"))
+            .trim_end_matches('-')
+            .to_string()
     }
 }
 
@@ -148,9 +142,7 @@ mod test {
         ];
 
         for url in invalid {
-            let result = RepositoryBuilder::default()
-                .clone_url(url)
-                .build();
+            let result = RepositoryBuilder::default().clone_url(url).build();
 
             assert!(result
                 .unwrap_err()

@@ -1,7 +1,7 @@
+use crate::messaging;
 use anyhow::Result;
 use async_nats::Subscriber;
 use futures_util::stream::StreamExt;
-use crate::messaging;
 use tokio_util::sync::CancellationToken;
 use tokio_util::task::TaskTracker;
 

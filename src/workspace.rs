@@ -1,6 +1,6 @@
 use crate::adapters::Adapter;
-use anyhow::Result;
 use crate::repository::Repository;
+use anyhow::Result;
 use octocrab::models::pulls::PullRequest;
 use shell_escape::escape as escape_cow;
 use std::fmt::Debug;
@@ -57,10 +57,7 @@ impl Workspace {
     pub async fn cmd(&self, cmd: &str) -> Result<()> {
         let inner = self.0.lock().await;
 
-        inner
-            .adapter
-            .cmd(cmd, None)
-            .await
+        inner.adapter.cmd(cmd, None).await
     }
 
     pub async fn repository(&self) -> Repository {
@@ -79,10 +76,7 @@ impl Workspace {
     pub async fn cmd_with_output(&self, cmd: &str) -> Result<String> {
         let inner = self.0.lock().await;
 
-        inner
-            .adapter
-            .cmd_with_output(cmd, None)
-            .await
+        inner.adapter.cmd_with_output(cmd, None).await
     }
 
     #[tracing::instrument(
@@ -93,20 +87,14 @@ impl Workspace {
     pub async fn write_file(&self, path: &str, content: &str) -> Result<()> {
         let inner = self.0.lock().await;
 
-        inner
-            .adapter
-            .write_file(path, content, None)
-            .await
+        inner.adapter.write_file(path, content, None).await
     }
 
     #[tracing::instrument(skip(self), fields(bosun.tracing=true), name = "workspace.read_file", err)]
     pub async fn read_file(&self, path: &str) -> Result<String> {
         let inner = self.0.lock().await;
 
-        inner
-            .adapter
-            .read_file(path, None)
-            .await
+        inner.adapter.read_file(path, None).await
     }
 
     // TODO: All the git commands should be pushed to the adapters so that there is a well defined

@@ -1,8 +1,8 @@
 use crate::adapters::Adapter;
 use anyhow::{Context, Result};
 // use async_nats::jetstream::response;
-use async_trait::async_trait;
 use crate::messaging;
+use async_trait::async_trait;
 use regex;
 use serde::{de::DeserializeOwned, Serialize};
 use std::fmt::Debug;
@@ -34,10 +34,7 @@ impl RemoteNatsAdapter {
         cmd: &str,
         _working_dir: Option<&str>,
     ) -> std::result::Result<std::process::Output, std::io::Error> {
-        debug!(
-            cmd = scrub(cmd),
-            "Running command"
-        );
+        debug!(cmd = scrub(cmd), "Running command");
         todo!()
     }
 
@@ -91,7 +88,12 @@ impl Adapter for RemoteNatsAdapter {
     }
 
     #[tracing::instrument]
-    async fn write_file(&self, file: &str, content: &str, _working_dir: Option<&str>) -> Result<()> {
+    async fn write_file(
+        &self,
+        file: &str,
+        content: &str,
+        _working_dir: Option<&str>,
+    ) -> Result<()> {
         // std::fs::write(format!("{}/{}", &self.path(working_dir), file), content)
         //     .context("Could not write file")
         todo!()

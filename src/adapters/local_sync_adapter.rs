@@ -100,7 +100,6 @@ fn init_path(name: &str) -> Result<String> {
 
 #[async_trait]
 impl Adapter for LocalTempSync {
-
     #[tracing::instrument(skip_all)]
     async fn init(&self) -> Result<()> {
         self.path.get_or_init(|| {

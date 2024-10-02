@@ -1,10 +1,10 @@
 pub mod adapters;
-pub mod service;
-pub mod workspace;
+pub mod config;
+pub mod github;
 pub mod messaging;
 pub mod repository;
-pub mod github;
-pub mod config;
+pub mod service;
+pub mod workspace;
 
 pub use adapters::Adapter;
 pub use workspace::Workspace;
