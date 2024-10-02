@@ -3,33 +3,46 @@ name = "workspace"
 version = "0.1.0"
 edition = "2021"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
 [dependencies]
-anyhow = { workspace = true }
-async-trait = { workspace = true }
-tracing = { workspace = true }
-rand = { workspace = true }
-uuid = { workspace = true }
-infrastructure = { path = "../infrastructure" }
-octocrab = { workspace = true }
-tokio = { workspace = true }
-tokio-util = { workspace = true }
-shell-escape = { workspace = true }
-regex = { workspace = true }
-futures-util = { workspace = true }
-serde = { workspace = true }
-serde_json = { workspace = true }
-async-nats = { workspace = true }
-models = { path = "../models" }
+anyhow = { version = "1.0.86", features = ["backtrace"] }
+serde = { version = "1.0.203", features = ["derive"] }
+serde_json = "1.0.117"
 bollard = "0.16.1"
+regex = "1.10.4"
+tracing = { version = "0.1.40", features = ["log"] }
+base64 = "0.22.0"
+derive_builder = "0.20.0"
+itertools = { version = "0.13.0" }
+jsonwebtoken = "9.2.0"
+url = "2.5.0"
+dotenvy = "0.15.7"
+
+tokio = { version = "1.38.0", features = ["full"] }
+tokio-util = { version = "0.7.11", features = ["full"] }
+async-trait = "0.1.80"
+async-nats = "0.34.0"
+futures-util = "0.3.30"
+rand = "0.8.5"
+uuid = { version = "1.8.0", features = ["v4", "serde"] }
+shell-escape = "0.1.5"
+octocrab = "0.38.0"
 
 [dev-dependencies]
-test-log = { workspace = true }
-tracing-subscriber = { workspace = true }
-regex = { workspace = true }
-test_utils = { path = "../test_utils" }
+regex = "1.10.4"
+
+# Testing
+test-log = { version = "0.2.16", default-features = false, features = [
+    "trace",
+] }
+tracing-subscriber = { version = "0.3.18", features = [
+    "env-filter",
+    "ansi",
+    "json",
+] }
 
 [features]
 integration_testing = []
 default = []
+[profile.dev]
+incremental = true
+debug = 0

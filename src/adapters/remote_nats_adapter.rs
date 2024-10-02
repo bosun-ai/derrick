@@ -2,7 +2,7 @@ use crate::adapters::Adapter;
 use anyhow::{Context, Result};
 use async_nats::jetstream::response;
 use async_trait::async_trait;
-use infrastructure::messaging;
+use crate::messaging;
 use regex;
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use std::fmt::Debug;

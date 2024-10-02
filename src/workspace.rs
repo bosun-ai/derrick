@@ -1,6 +1,6 @@
 use crate::adapters::Adapter;
 use anyhow::Result;
-use models::Repository;
+use crate::repository::Repository;
 use octocrab::models::pulls::PullRequest;
 use shell_escape::escape as escape_cow;
 use std::fmt::Debug;
@@ -39,9 +39,10 @@ impl Workspace {
     pub async fn full_path(&self) -> PathBuf {
         let inner = self.0.lock().await;
 
-        inner
-            .adapter
-            .path(inner.repository.component.normalized_path())
+        // inner
+        //     .adapter
+        //     .path(inner.repository.component.normalized_path())
+        todo!()
     }
 
     #[tracing::instrument(skip_all, fields(bosun.tracing=true), name = "workspace.init")]
@@ -174,7 +175,7 @@ impl Workspace {
         }
 
         let inner = self.0.lock().await;
-        match infrastructure::github::GithubSession::try_new() {
+        match crate::github::GithubSession::try_new() {
             Ok(github_session) => {
                 // https://github.com/orgs/community/discussions/24664
                 let user = github_session.user().await?;
@@ -217,7 +218,7 @@ impl Workspace {
             return Ok(());
         }
 
-        match infrastructure::github::GithubSession::try_new() {
+        match crate::github::GithubSession::try_new() {
             Ok(github_session) => {
                 // Locks should never go over awaits
                 let mut codebase_url: String = String::new();
@@ -294,7 +295,7 @@ impl Workspace {
         description: &str,
         branch_name: &str,
     ) -> Result<PullRequest> {
-        let github_session = infrastructure::github::GithubSession::try_new()?;
+        let github_session = crate::github::GithubSession::try_new()?;
         let repo_url = self.0.lock().await.repository.clone_url.clone();
         let main_branch = self
             .cmd_with_output(MAIN_BRANCH_CMD)
