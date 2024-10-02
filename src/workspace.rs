@@ -4,7 +4,6 @@ use crate::repository::Repository;
 use octocrab::models::pulls::PullRequest;
 use shell_escape::escape as escape_cow;
 use std::fmt::Debug;
-use std::path::PathBuf;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 use tracing::info;
@@ -36,15 +35,6 @@ impl Workspace {
         Self(Arc::new(Mutex::new(inner)))
     }
 
-    pub async fn full_path(&self) -> PathBuf {
-        let inner = self.0.lock().await;
-
-        // inner
-        //     .adapter
-        //     .path(inner.repository.component.normalized_path())
-        todo!()
-    }
-
     #[tracing::instrument(skip_all, fields(bosun.tracing=true), name = "workspace.init")]
     pub async fn init(&self) -> Result<()> {
         info!("Initializing workspace");
@@ -69,7 +59,7 @@ impl Workspace {
 
         inner
             .adapter
-            .cmd(cmd, inner.repository.component.normalized_path())
+            .cmd(cmd, None)
             .await
     }
 
@@ -91,7 +81,7 @@ impl Workspace {
 
         inner
             .adapter
-            .cmd_with_output(cmd, inner.repository.component.normalized_path())
+            .cmd_with_output(cmd, None)
             .await
     }
 
@@ -105,7 +95,7 @@ impl Workspace {
 
         inner
             .adapter
-            .write_file(path, content, inner.repository.component.normalized_path())
+            .write_file(path, content, None)
             .await
     }
 
@@ -115,7 +105,7 @@ impl Workspace {
 
         inner
             .adapter
-            .read_file(path, inner.repository.component.normalized_path())
+            .read_file(path, None)
             .await
     }
 

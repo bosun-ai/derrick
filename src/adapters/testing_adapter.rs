@@ -3,7 +3,7 @@ use anyhow::{Context, Result};
 use async_trait::async_trait;
 use rand::Rng;
 use std::process::Command;
-use std::{fmt::Debug, path::PathBuf};
+use std::{fmt::Debug};
 use tracing::{debug, warn};
 
 // Runs commands in a local temporary directory
@@ -79,10 +79,6 @@ impl Drop for TestingAdapter {
 
 #[async_trait]
 impl Adapter for TestingAdapter {
-    fn path(&self, _working_dir: Option<&str>) -> PathBuf {
-        self.path.clone().into()
-    }
-
     #[tracing::instrument]
     async fn init(&self) -> Result<()> {
         warn!(path = &self.path, "Creating local temp directory");

@@ -60,25 +60,7 @@ impl LocalTempSync {
             .output()
             .context("Could not run command")
     }
-}
 
-fn init_path(name: &str) -> Result<String> {
-    let mut current_dir = std::env::current_dir().expect("Could not get current directory");
-    current_dir.push("tmp");
-    current_dir.push(name);
-
-    if !current_dir.exists() {
-        std::fs::create_dir_all(&current_dir).context("Could not create local temp directory")?;
-    }
-    Ok(current_dir
-        .canonicalize()?
-        .to_str()
-        .context("Could not convert to string")?
-        .to_string())
-}
-
-#[async_trait]
-impl Adapter for LocalTempSync {
     fn path(&self, working_dir: Option<&str>) -> PathBuf {
         let mut base_path = std::path::PathBuf::from(
             self.path
@@ -99,6 +81,25 @@ impl Adapter for LocalTempSync {
         base_path.push(working_dir);
         base_path
     }
+}
+
+fn init_path(name: &str) -> Result<String> {
+    let mut current_dir = std::env::current_dir().expect("Could not get current directory");
+    current_dir.push("tmp");
+    current_dir.push(name);
+
+    if !current_dir.exists() {
+        std::fs::create_dir_all(&current_dir).context("Could not create local temp directory")?;
+    }
+    Ok(current_dir
+        .canonicalize()?
+        .to_str()
+        .context("Could not convert to string")?
+        .to_string())
+}
+
+#[async_trait]
+impl Adapter for LocalTempSync {
 
     #[tracing::instrument(skip_all)]
     async fn init(&self) -> Result<()> {

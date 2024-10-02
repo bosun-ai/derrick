@@ -4,7 +4,6 @@ use bollard::Docker;
 
 use bollard::exec::{CreateExecOptions, StartExecResults};
 use bollard::image::CreateImageOptions;
-use futures_util::future::poll_fn;
 use futures_util::stream::StreamExt;
 use futures_util::TryStreamExt;
 
@@ -15,7 +14,6 @@ static IMAGE: &str = "alpine:latest";
 
 #[derive(Debug)]
 pub struct DockerAdapter {
-    path: String,
     docker: Option<Docker>,
     container_id: Option<String>,
 }
@@ -105,11 +103,6 @@ impl Adapter for DockerAdapter {
     async fn read_file(&self, path: &str, working_dir: Option<&str>) -> Result<String> {
         self.cmd_with_output(&format!("cat {}", path), working_dir)
             .await
-    }
-
-    fn path(&self, _working_dir: Option<&str>) -> String {
-        panic!("This should never ever be called");
-        self.path.clone()
     }
 }
 

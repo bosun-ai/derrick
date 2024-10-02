@@ -40,13 +40,11 @@ impl Repository {
     ///
     /// @example
     /// ```
-    /// use models::{Repository, ProjectComponent};
+    /// use models::{Repository};
     /// use models::SupportedLanguages;
     ///
     /// let codebase = Repository {
     ///    full_name: "bosun-ai/fluyt".to_string(),
-    ///    component: ProjectComponent {
-    ///      language: SupportedLanguages::Rust,
     ///      ..Default::default()
     ///    },
     ///    ..Default::default()
@@ -54,10 +52,6 @@ impl Repository {
     ///  assert_eq!(&codebase.huuid(), "bosun-ai-fluyt");
     ///
     ///  let codebase_with_workdir = Repository {
-    ///    component: ProjectComponent {
-    ///      root_path: "src".into(),
-    ///      ..Default::default()
-    ///    },
     ///    ..codebase.clone()
     ///  };
     ///  assert_eq!(&codebase_with_workdir.huuid(), "bosun-ai-fluyt-src");
@@ -65,15 +59,13 @@ impl Repository {
     pub fn huuid(&self) -> String {
         if cfg!(feature = "integration_testing") {
             return format!(
-                "test-{}-{}",
-                self.full_name.replace(['/', ':'], "-"),
-                self.component.language
+                "test-{}",
+                self.full_name.replace(['/', ':'], "-")
             );
         }
         format!(
-            "{}-{}",
-            self.full_name.replace(['/', ':'], "-"),
-            self.component.normalized_path().unwrap_or("")
+            "{}",
+            self.full_name.replace(['/', ':'], "-")
         )
         .trim_end_matches('-')
         .to_string()

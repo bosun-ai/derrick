@@ -1,10 +1,10 @@
 use crate::adapters::Adapter;
 use anyhow::{Context, Result};
-use async_nats::jetstream::response;
+// use async_nats::jetstream::response;
 use async_trait::async_trait;
 use crate::messaging;
 use regex;
-use serde::{de::DeserializeOwned, Deserialize, Serialize};
+use serde::{de::DeserializeOwned, Serialize};
 use std::fmt::Debug;
 use std::sync::OnceLock;
 use tracing::{debug, warn};
@@ -32,11 +32,10 @@ impl RemoteNatsAdapter {
     fn spawn_cmd(
         &self,
         cmd: &str,
-        working_dir: Option<&str>,
+        _working_dir: Option<&str>,
     ) -> std::result::Result<std::process::Output, std::io::Error> {
         debug!(
             cmd = scrub(cmd),
-            path = self.path(working_dir),
             "Running command"
         );
         todo!()
@@ -67,10 +66,6 @@ impl RemoteNatsAdapter {
 
 #[async_trait]
 impl Adapter for RemoteNatsAdapter {
-    fn path(&self, working_dir: Option<&str>) -> String {
-        todo!()
-    }
-
     #[tracing::instrument]
     async fn init(&self) -> Result<()> {
         let channel = messaging::Channel::establish("workspace.init".to_string()).await?;
@@ -96,7 +91,7 @@ impl Adapter for RemoteNatsAdapter {
     }
 
     #[tracing::instrument]
-    async fn write_file(&self, file: &str, content: &str, working_dir: Option<&str>) -> Result<()> {
+    async fn write_file(&self, file: &str, content: &str, _working_dir: Option<&str>) -> Result<()> {
         // std::fs::write(format!("{}/{}", &self.path(working_dir), file), content)
         //     .context("Could not write file")
         todo!()

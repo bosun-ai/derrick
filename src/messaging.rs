@@ -1,7 +1,6 @@
 use anyhow::Result;
 pub use async_nats::Subscriber;
 use base64::Engine;
-use crate::config;
 
 pub async fn establish_connection() -> Result<async_nats::client::Client> {
     let nats_creds_b64 = crate::config()
@@ -94,16 +93,16 @@ impl Channel {
         ))
     }
 
-    pub async fn establish(topic: String) -> Result<(Self)> {
+    pub async fn establish(topic: String) -> Result<Self> {
         let channel_instance_subject = format!("{}.{}", topic, random_hex(8));
 
         let client = establish_connection().await?;
 
-        Ok((Self {
+        Ok(Self {
             channel_topic: topic,
             channel_instance_subject,
             client,
-        }))
+        })
     }
 
     pub async fn subscribe(&self) -> Result<Subscriber> {
