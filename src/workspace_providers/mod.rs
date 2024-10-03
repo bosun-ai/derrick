@@ -2,13 +2,23 @@ mod local_temp_sync;
 pub use local_temp_sync::LocalTempSyncProvider;
 
 use anyhow::Result;
+use serde::Deserialize;
 use crate::{repository::Repository, WorkspaceController};
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Deserialize)]
 pub struct WorkspaceContext {
     pub name: String, // Unique name for the workspace (for inspection/debugging)
     pub repositories: Vec<Repository>,
     pub setup_script: String,
+}
+
+impl WorkspaceContext {
+    pub fn from_file(path: String) -> Result<WorkspaceContext> {
+        let file = std::fs::File::open(path)?;
+        let reader = std::io::BufReader::new(file);
+        let context = serde_json::from_reader(reader)?;
+        Ok(context)
+    }
 }
 
 pub trait WorkspaceProvider {
