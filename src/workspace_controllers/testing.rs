@@ -112,6 +112,11 @@ impl WorkspaceController for TestingController {
     async fn read_file(&self, file: &str, _working_dir: Option<&str>) -> Result<String> {
         std::fs::read_to_string(format!("{}/{}", &self.path, file)).context("Could not read file")
     }
+
+    #[tracing::instrument(skip_all)]
+    async fn provision_repositories(&self, _repositories: Vec<crate::repository::Repository>) -> Result<()> {
+        todo!()
+    }
 }
 
 #[tracing::instrument]

@@ -104,6 +104,10 @@ impl WorkspaceController for DockerController {
         self.cmd_with_output(&format!("cat {}", path), working_dir)
             .await
     }
+
+    async fn provision_repositories(&self, _repositories: Vec<crate::repository::Repository>) -> Result<()> {
+        Ok(())
+    }
 }
 
 impl Drop for DockerController {

@@ -19,6 +19,10 @@ pub struct Repository {
     pub clone_url: String,
     #[builder(default)]
     pub ssh_url: Option<String>,
+    #[builder(default)]
+    pub checkout_path: String,
+    #[builder(default)]
+    pub reference: String
 }
 
 impl Repository {
@@ -30,39 +34,6 @@ impl Repository {
 
     pub fn builder() -> RepositoryBuilder {
         RepositoryBuilder::default()
-    }
-
-    /// A human readable unique identifier for a codebase
-    ///
-    /// I.e. bosun-ai/fluyt/rust
-    ///
-    /// Used for cache prefixes and storage namespacing
-    ///
-    /// @example
-    /// ```
-    /// use models::{Repository};
-    /// use models::SupportedLanguages;
-    ///
-    /// let codebase = Repository {
-    ///    full_name: "bosun-ai/fluyt".to_string(),
-    ///      ..Default::default()
-    ///    },
-    ///    ..Default::default()
-    ///  };
-    ///  assert_eq!(&codebase.huuid(), "bosun-ai-fluyt");
-    ///
-    ///  let codebase_with_workdir = Repository {
-    ///    ..codebase.clone()
-    ///  };
-    ///  assert_eq!(&codebase_with_workdir.huuid(), "bosun-ai-fluyt-src");
-    /// ```
-    pub fn huuid(&self) -> String {
-        if cfg!(feature = "integration_testing") {
-            return format!("test-{}", self.full_name.replace(['/', ':'], "-"));
-        }
-        format!("{}", self.full_name.replace(['/', ':'], "-"))
-            .trim_end_matches('-')
-            .to_string()
     }
 }
 

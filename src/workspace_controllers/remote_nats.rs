@@ -105,6 +105,11 @@ impl WorkspaceController for RemoteNatsController {
         //     .context("Could not read file")
         todo!()
     }
+
+    #[tracing::instrument(skip_all)]
+    async fn provision_repositories(&self, _repositories: Vec<crate::repository::Repository>) -> Result<()> {
+        todo!()
+    }
 }
 
 #[tracing::instrument]

@@ -150,6 +150,15 @@ impl WorkspaceController for LocalTempSyncController {
         let path = self.path(working_dir).as_path().join(file);
         std::fs::read_to_string(path).context("Could not read file")
     }
+
+    #[tracing::instrument(skip_all)]
+    async fn provision_repositories(&self, repositories: Vec<crate::repository::Repository>) -> Result<()> {
+        for repo in repositories {
+            self.cmd(&format!("mkdir -p {}", repo.checkout_path), None).await?;
+            self.cmd(&format!("git clone {}", repo.clone_url), Some(repo.checkout_path.as_ref())).await?;
+        }
+        Ok(())
+    }
 }
 
 #[tracing::instrument(skip_all)]
