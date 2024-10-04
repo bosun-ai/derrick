@@ -1,6 +1,8 @@
 use anyhow::Result;
 use clap::Parser;
 
+use workspace_provider::{http_server, server};
+
 #[tokio::main]
 async fn main() -> Result<()> {
     let opts: Opts = Opts::parse();
@@ -8,14 +10,13 @@ async fn main() -> Result<()> {
     let workspace_config_path = opts.workspace_config_path;
 
     let context = workspace_provider::WorkspaceContext::from_file(workspace_config_path)?;
+    let server = server::Server::create_server(context, provider)?;
 
     match opts.server_mode.as_str() {
         "nats" => {
             todo!()
         }
-        "http" => {
-            todo!()
-        }
+        "http" => http_server::serve_http(server).await,
         _ => {
             return Err(anyhow::anyhow!(
                 "Unsupported server mode: {}",

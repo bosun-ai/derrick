@@ -1,8 +1,9 @@
 mod config;
 mod github;
+pub mod http_server;
 mod messaging;
 mod repository;
-mod server;
+pub mod server;
 pub mod service;
 mod workspace;
 mod workspace_controllers;

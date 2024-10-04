@@ -21,7 +21,7 @@ impl WorkspaceContext {
     }
 }
 
-pub trait WorkspaceProvider {
+pub trait WorkspaceProvider: Send + Sync {
     fn provision(&self, context: &WorkspaceContext) -> Result<Box<dyn WorkspaceController>>;
 }
 
