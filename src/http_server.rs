@@ -4,10 +4,9 @@ use dropshot::{
     endpoint, ApiDescription, ConfigDropshot, ConfigLogging, ConfigLoggingLevel, HandlerTaskMode,
     HttpError, HttpResponseOk, HttpServerStarter, Path, RequestContext, TypedBody,
 };
-use http::Method;
+
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use std::{borrow::BorrowMut, sync::Arc};
 use tokio::sync::Mutex;
 
 use crate::server::Server;
@@ -16,7 +15,7 @@ pub async fn serve_http(server: Server) -> Result<()> {
     let log = ConfigLogging::StderrTerminal {
         level: ConfigLoggingLevel::Info,
     }
-    .to_logger("minimal-example")
+    .to_logger("workspace-provider")
     .map_err(|e| anyhow::anyhow!("Failed to create logger: {:?}", e))?;
 
     let mut api = ApiDescription::new();
@@ -32,7 +31,7 @@ pub async fn serve_http(server: Server) -> Result<()> {
 
     let server = HttpServerStarter::new(
         &ConfigDropshot {
-      bind_address: "127.0.0.1:0".parse().unwrap(),
+      bind_address: "127.0.0.1:50080".parse().unwrap(),
       request_body_max_bytes: /* 100MB */ 100 * 1024 * 1024,
       default_handler_task_mode: HandlerTaskMode::Detached,
       log_headers: Default::default(),
