@@ -74,6 +74,10 @@ impl WorkspaceController for RemoteNatsController {
         Ok(())
     }
 
+    async fn stop(&self) -> Result<()> {
+        todo!();
+    }
+
     #[tracing::instrument(fields(cmd = scrub(cmd)))]
     async fn cmd(&self, cmd: &str, working_dir: Option<&str>) -> Result<()> {
         self.spawn_cmd(cmd, working_dir)
@@ -107,7 +111,10 @@ impl WorkspaceController for RemoteNatsController {
     }
 
     #[tracing::instrument(skip_all)]
-    async fn provision_repositories(&self, _repositories: Vec<crate::repository::Repository>) -> Result<()> {
+    async fn provision_repositories(
+        &self,
+        _repositories: Vec<crate::repository::Repository>,
+    ) -> Result<()> {
         todo!()
     }
 }

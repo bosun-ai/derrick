@@ -51,6 +51,10 @@ impl WorkspaceController for DockerController {
         Ok(())
     }
 
+    async fn stop(&self) -> Result<()> {
+        todo!();
+    }
+
     async fn cmd_with_output(&self, cmd: &str, working_dir: Option<&str>) -> Result<String> {
         // TODO: Working dir
         let mut response = String::new();
@@ -105,7 +109,10 @@ impl WorkspaceController for DockerController {
             .await
     }
 
-    async fn provision_repositories(&self, _repositories: Vec<crate::repository::Repository>) -> Result<()> {
+    async fn provision_repositories(
+        &self,
+        _repositories: Vec<crate::repository::Repository>,
+    ) -> Result<()> {
         Ok(())
     }
 }

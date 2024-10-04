@@ -9,17 +9,19 @@ async fn main() -> Result<()> {
 
     let context = workspace_provider::WorkspaceContext::from_file(workspace_config_path)?;
 
-    let controller = provider.provision(context)?;
-    controller.init().await?;
-
     match opts.server_mode.as_str() {
         "nats" => {
-          todo!()
+            todo!()
         }
         "http" => {
-          todo!()
+            todo!()
         }
-        _ => return Err(anyhow::anyhow!("Unsupported server mode: {}", opts.server_mode)),
+        _ => {
+            return Err(anyhow::anyhow!(
+                "Unsupported server mode: {}",
+                opts.server_mode
+            ))
+        }
     }
 }
 

@@ -22,7 +22,7 @@ pub struct Repository {
     #[builder(default)]
     pub checkout_path: String,
     #[builder(default)]
-    pub reference: String
+    pub reference: String,
 }
 
 impl Repository {

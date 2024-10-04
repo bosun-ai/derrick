@@ -85,6 +85,10 @@ impl WorkspaceController for TestingController {
         Ok(())
     }
 
+    async fn stop(&self) -> Result<()> {
+        todo!();
+    }
+
     #[tracing::instrument(skip(self), name = "TestingAdapter#cmd")]
     async fn cmd(&self, cmd: &str, _working_dir: Option<&str>) -> Result<()> {
         self.spawn_cmd(cmd)
@@ -114,7 +118,10 @@ impl WorkspaceController for TestingController {
     }
 
     #[tracing::instrument(skip_all)]
-    async fn provision_repositories(&self, _repositories: Vec<crate::repository::Repository>) -> Result<()> {
+    async fn provision_repositories(
+        &self,
+        _repositories: Vec<crate::repository::Repository>,
+    ) -> Result<()> {
         todo!()
     }
 }

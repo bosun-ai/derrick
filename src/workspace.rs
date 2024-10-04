@@ -1,5 +1,5 @@
-use crate::workspace_controllers::WorkspaceController;
 use crate::repository::Repository;
+use crate::workspace_controllers::WorkspaceController;
 use anyhow::Result;
 use octocrab::models::pulls::PullRequest;
 use shell_escape::escape as escape_cow;

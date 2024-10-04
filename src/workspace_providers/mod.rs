@@ -1,9 +1,9 @@
 mod local_temp_sync;
 pub use local_temp_sync::LocalTempSyncProvider;
 
+use crate::{repository::Repository, WorkspaceController};
 use anyhow::Result;
 use serde::Deserialize;
-use crate::{repository::Repository, WorkspaceController};
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct WorkspaceContext {
@@ -22,12 +22,17 @@ impl WorkspaceContext {
 }
 
 pub trait WorkspaceProvider {
-    fn provision(&self, context: WorkspaceContext) -> Result<Box<dyn WorkspaceController>>;
+    fn provision(&self, context: &WorkspaceContext) -> Result<Box<dyn WorkspaceController>>;
 }
 
 pub async fn get_provider(provisioning_mode: String) -> Result<Box<dyn WorkspaceProvider>> {
     match provisioning_mode.as_str() {
         "local" => Ok(Box::new(LocalTempSyncProvider::new())),
-        _ => return Err(anyhow::anyhow!("Unsupported provisioning mode: {}", provisioning_mode)),
+        _ => {
+            return Err(anyhow::anyhow!(
+                "Unsupported provisioning mode: {}",
+                provisioning_mode
+            ))
+        }
     }
 }

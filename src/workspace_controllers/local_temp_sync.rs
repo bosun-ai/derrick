@@ -119,6 +119,10 @@ impl WorkspaceController for LocalTempSyncController {
         Ok(())
     }
 
+    async fn stop(&self) -> Result<()> {
+        todo!();
+    }
+
     #[tracing::instrument(skip(self), fields(cmd = scrub(cmd)))]
     async fn cmd(&self, cmd: &str, working_dir: Option<&str>) -> Result<()> {
         let envs = self.whitelisted_env.read().await.clone();
@@ -152,10 +156,18 @@ impl WorkspaceController for LocalTempSyncController {
     }
 
     #[tracing::instrument(skip_all)]
-    async fn provision_repositories(&self, repositories: Vec<crate::repository::Repository>) -> Result<()> {
+    async fn provision_repositories(
+        &self,
+        repositories: Vec<crate::repository::Repository>,
+    ) -> Result<()> {
         for repo in repositories {
-            self.cmd(&format!("mkdir -p {}", repo.checkout_path), None).await?;
-            self.cmd(&format!("git clone {}", repo.clone_url), Some(repo.checkout_path.as_ref())).await?;
+            self.cmd(&format!("mkdir -p {}", repo.checkout_path), None)
+                .await?;
+            self.cmd(
+                &format!("git clone {}", repo.clone_url),
+                Some(repo.checkout_path.as_ref()),
+            )
+            .await?;
         }
         Ok(())
     }
