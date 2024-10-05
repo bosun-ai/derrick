@@ -1,0 +1,5 @@
+{
+  "name": "test-123",
+  "repositories": [],
+  "setup_script": "rm /tmp/hello.txt; echo \"Hello World\" > /tmp/hello.txt"
+}
