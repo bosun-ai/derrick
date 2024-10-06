@@ -31,6 +31,7 @@ dropshot = "0.12.0"
 schemars = "0.8.21"
 http = "1.1.0"
 tracing-subscriber = "0.3.18"
+whoami = "1.5.2"
 
 [dev-dependencies]
 regex = "1.10.4"
