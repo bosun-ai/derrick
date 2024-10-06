@@ -28,12 +28,9 @@ impl DockerController {
         info!("Connecting to Docker daemon");
         // test docker connection
         docker.ping().await?;
-        
 
         info!("Creating container with image: {}", base_image);
 
-
-        
         docker
             .create_image(
                 Some(CreateImageOptions {
@@ -54,7 +51,7 @@ impl DockerController {
 
         let container_options = Some(CreateContainerOptions {
             name: name.as_str(),
-            platform: None
+            platform: None,
         });
 
         let id = docker
@@ -82,20 +79,21 @@ impl WorkspaceController for DockerController {
 
     async fn stop(&self) -> Result<()> {
         self.docker
-                .remove_container(
-                    &self.container_id,
-                    Some(RemoveContainerOptions {
-                        force: true,
-                        ..Default::default()
-                    }),
-                )
-                .await?;
+            .remove_container(
+                &self.container_id,
+                Some(RemoveContainerOptions {
+                    force: true,
+                    ..Default::default()
+                }),
+            )
+            .await?;
         Ok(())
     }
 
     async fn cmd_with_output(&self, cmd: &str, working_dir: Option<&str>) -> Result<String> {
         // TODO: Working dir
-        let exec = self.docker
+        let exec = self
+            .docker
             .create_exec(
                 &self.container_id,
                 CreateExecOptions {
@@ -149,9 +147,7 @@ impl WorkspaceController for DockerController {
 impl Drop for DockerController {
     fn drop(&mut self) {
         let handle = tokio::runtime::Handle::current();
-        let result = handle.block_on(async {
-            self.stop().await
-        });
+        let result = handle.block_on(async { self.stop().await });
 
         if let Err(e) = result {
             tracing::error!(error = %e, "Could not remove container");
