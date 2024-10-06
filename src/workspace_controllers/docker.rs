@@ -6,7 +6,7 @@ use bollard::exec::{CreateExecOptions, StartExecResults};
 use bollard::image::CreateImageOptions;
 use futures_util::stream::StreamExt;
 use futures_util::TryStreamExt;
-use tracing::info;
+use tracing::debug;
 
 use crate::WorkspaceController;
 use anyhow::Result;
@@ -23,13 +23,9 @@ pub struct DockerController {
 impl DockerController {
     pub async fn start(docker: &Docker, name: &str) -> Result<Self> {
         let name = format!("{}-{}", name, uuid::Uuid::new_v4());
-        let base_image = ALPINE_IMAGE;
+        let base_image = UBUNTU_IMAGE;
 
-        info!("Connecting to Docker daemon");
-        // test docker connection
-        docker.ping().await?;
-
-        info!("Creating container with image: {}", base_image);
+        debug!("Creating container with image: {}", base_image);
 
         docker
             .create_image(
@@ -59,7 +55,7 @@ impl DockerController {
             .await?
             .id;
 
-        info!("Starting container with name: {}", id);
+        debug!("Starting container with name: {}", id);
 
         docker.start_container::<String>(&id, None).await?;
 

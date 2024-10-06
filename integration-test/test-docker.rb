@@ -21,10 +21,10 @@ def request(method, path, body=nil)
   JSON.parse(response.body)
 end
 
-begin
+def run_tests(provisioner_mode:)
   file_dir = File.dirname(__FILE__)
 
-  cmd = "cargo run -- -p docker -s http -w #{file_dir}/test_config.json"
+  cmd = "cargo run -- -p #{provisioner_mode} -s http -w #{file_dir}/test_config.json"
   
   # Run the command in a separate process
   pid = Process.spawn(cmd)
@@ -57,8 +57,14 @@ begin
   response = request(:post, "/workspaces/#{id}/cmd_with_output", { 'cmd' => 'echo hello' })
   raise "Expected output, got #{response.inspect}" unless response == "hello\n"
 
-  puts "\n\nAll tests passed!\n\n"
 ensure
   # Kill the process
   Process.kill('TERM', pid)
 end
+
+["local", "docker"].each do |provisioner_mode|
+  puts "Running tests in #{provisioner_mode} mode..."
+  run_tests(provisioner_mode: provisioner_mode)
+end
+
+puts "\n\nAll tests passed!\n\n"
