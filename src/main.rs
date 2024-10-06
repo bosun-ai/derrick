@@ -5,6 +5,8 @@ use workspace_provider::{http_server, server};
 
 #[tokio::main]
 async fn main() -> Result<()> {
+    tracing_subscriber::fmt::init();
+
     let opts: Opts = Opts::parse();
     let provider = workspace_provider::get_provider(opts.provisioning_mode).await?;
     let workspace_config_path = opts.workspace_config_path;

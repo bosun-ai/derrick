@@ -1,5 +1,5 @@
 use async_trait::async_trait;
-use bollard::container::{Config, RemoveContainerOptions};
+use bollard::container::{Config, CreateContainerOptions, RemoveContainerOptions};
 use bollard::Docker;
 
 use bollard::exec::{CreateExecOptions, StartExecResults};
@@ -10,24 +10,23 @@ use futures_util::TryStreamExt;
 use crate::WorkspaceController;
 use anyhow::Result;
 
-static IMAGE: &str = "alpine:latest";
+static ALPINE_IMAGE: &str = "alpine:3.20";
+static UBUNTU_IMAGE: &str = "ubuntu:noble";
 
 #[derive(Debug)]
 pub struct DockerController {
-    docker: Option<Docker>,
-    container_id: Option<String>,
+    docker: Docker,
+    container_id: String,
 }
 
-#[async_trait]
-impl WorkspaceController for DockerController {
-    async fn init(&self) -> Result<()> {
-        // Can also connect over http or tls
-        let docker = Docker::connect_with_socket_defaults().unwrap();
-
+impl DockerController {
+    pub async fn start(docker: &Docker, name: &str) -> Result<Self> {
+        let name = format!("{}-{}", name, uuid::Uuid::new_v4());
+        let base_image = ALPINE_IMAGE;
         docker
             .create_image(
                 Some(CreateImageOptions {
-                    from_image: IMAGE,
+                    from_image: base_image,
                     ..Default::default()
                 }),
                 None,
@@ -36,40 +35,56 @@ impl WorkspaceController for DockerController {
             .try_collect::<Vec<_>>()
             .await?;
 
-        let alpine_config = Config {
-            image: Some(IMAGE),
+        let container_config = Config {
+            image: Some(base_image),
             tty: Some(true),
             ..Default::default()
         };
 
+        let container_options = Some(CreateContainerOptions {
+            name: name.as_str(),
+            platform: None
+        });
+
         let id = docker
-            .create_container::<&str, &str>(None, alpine_config)
+            .create_container::<&str, &str>(container_options, container_config)
             .await?
             .id;
 
         docker.start_container::<String>(&id, None).await?;
+
+        Ok(Self {
+            docker: docker.clone(),
+            container_id: id,
+        })
+    }
+}
+
+#[async_trait]
+impl WorkspaceController for DockerController {
+    async fn init(&self) -> Result<()> {
+        // Can also connect over http or tls
         Ok(())
     }
 
     async fn stop(&self) -> Result<()> {
-        todo!();
+        self.docker
+                .remove_container(
+                    &self.container_id,
+                    Some(RemoveContainerOptions {
+                        force: true,
+                        ..Default::default()
+                    }),
+                )
+                .await?;
+        Ok(())
     }
 
     async fn cmd_with_output(&self, cmd: &str, working_dir: Option<&str>) -> Result<String> {
         // TODO: Working dir
-        let mut response = String::new();
-        let docker = self
-            .docker
-            .as_ref()
-            .ok_or_else(|| anyhow::anyhow!("Docker not initialized"))?;
-        let container_id = self
-            .container_id
-            .as_ref()
-            .ok_or_else(|| anyhow::anyhow!("Container not initialized"))?;
-
-        let exec = docker
+        let exec = self.docker
             .create_exec(
-                &container_id,
+                &self.container_id,
                 CreateExecOptions {
                     attach_stdout: Some(true),
                     attach_stderr: Some(true),
@@ -80,15 +95,16 @@ impl WorkspaceController for DockerController {
             .await?
             .id;
 
+        let mut response = String::new();
+
         if let StartExecResults::Attached { mut output, .. } =
-            docker.start_exec(&exec, None).await?
+            self.docker.start_exec(&exec, None).await?
         {
             while let Some(Ok(msg)) = output.next().await {
                 response.push_str(&msg.to_string());
             }
         } else {
-            // It's definately reachable
-            unreachable!();
+            todo!();
         }
         Ok(response)
     }
@@ -119,24 +135,9 @@ impl WorkspaceController for DockerController {
 
 impl Drop for DockerController {
     fn drop(&mut self) {
-        let Some(container_id) = self.container_id.take() else {
-            return;
-        };
-        let Some(docker) = self.docker.take() else {
-            return;
-        };
-
         let handle = tokio::runtime::Handle::current();
         let result = handle.block_on(async {
-            docker
-                .remove_container(
-                    &container_id,
-                    Some(RemoveContainerOptions {
-                        force: true,
-                        ..Default::default()
-                    }),
-                )
-                .await
+            self.stop().await
         });
 
         if let Err(e) = result {

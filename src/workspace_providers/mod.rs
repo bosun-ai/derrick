@@ -1,5 +1,9 @@
+use async_trait::async_trait;
+
 mod local_temp_sync;
 pub use local_temp_sync::LocalTempSyncProvider;
+
+mod docker;
 
 use crate::{repository::Repository, WorkspaceController};
 use anyhow::Result;
@@ -21,13 +25,15 @@ impl WorkspaceContext {
     }
 }
 
+#[async_trait]
 pub trait WorkspaceProvider: Send + Sync {
-    fn provision(&self, context: &WorkspaceContext) -> Result<Box<dyn WorkspaceController>>;
+    async fn provision(&self, context: &WorkspaceContext) -> Result<Box<dyn WorkspaceController>>;
 }
 
 pub async fn get_provider(provisioning_mode: String) -> Result<Box<dyn WorkspaceProvider>> {
     match provisioning_mode.as_str() {
         "local" => Ok(Box::new(LocalTempSyncProvider::new())),
+        "docker" => Ok(Box::new(docker::DockerProvider::new())),
         _ => {
             return Err(anyhow::anyhow!(
                 "Unsupported provisioning mode: {}",

@@ -1,4 +1,5 @@
 use anyhow::Result;
+use async_trait::async_trait;
 
 use crate::{workspace_controllers::LocalTempSyncController, WorkspaceController};
 
@@ -12,8 +13,9 @@ impl LocalTempSyncProvider {
     }
 }
 
+#[async_trait]
 impl WorkspaceProvider for LocalTempSyncProvider {
-    fn provision(&self, context: &WorkspaceContext) -> Result<Box<dyn WorkspaceController>> {
+    async fn provision(&self, context: &WorkspaceContext) -> Result<Box<dyn WorkspaceController>> {
         let controller = Box::new(LocalTempSyncController::new(&context.name));
         Ok(controller)
     }

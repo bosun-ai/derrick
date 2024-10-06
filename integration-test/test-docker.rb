@@ -24,7 +24,7 @@ end
 begin
   file_dir = File.dirname(__FILE__)
 
-  cmd = "cargo run -- -p local -s http -w #{file_dir}/test_config.json"
+  cmd = "cargo run -- -p docker -s http -w #{file_dir}/test_config.json"
   
   # Run the command in a separate process
   pid = Process.spawn(cmd)
