@@ -12,23 +12,17 @@ use serde::Deserialize;
 #[builder_struct_attr(serde(rename_all = "camelCase"))]
 pub struct Repository {
     #[builder(default = "self.default_repository_name()?")]
-    pub name: String,
-    #[builder(default = "self.default_repository_name()?")]
-    pub full_name: String,
-    #[builder(field(build = "self.parse_repository_url()?"))]
-    pub clone_url: String,
+    pub url: String,
     #[builder(default)]
-    pub ssh_url: Option<String>,
+    pub path: String,
     #[builder(default)]
-    pub checkout_path: String,
-    #[builder(default)]
-    pub reference: String,
+    pub reference: Option<String>,
 }
 
 impl Repository {
     pub fn from_url(url: impl Into<String>) -> RepositoryBuilder {
         RepositoryBuilder::default()
-            .clone_url(url.into())
+            .url(url.into())
             .to_owned()
     }
 
@@ -46,10 +40,10 @@ impl From<&Repository> for Repository {
 impl RepositoryBuilder {
     fn default_repository_name(&self) -> Result<String> {
         let mut parts = self
-            .clone_url
+            .url
             .as_ref()
             .ok_or(anyhow::anyhow!(
-                "Expected clone_url when building repository"
+                "Expected url when building repository"
             ))?
             .split('/');
         let last_two = parts.by_ref().rev().take(2).collect::<Vec<&str>>();
@@ -63,7 +57,7 @@ impl RepositoryBuilder {
 
     fn parse_repository_url(&self) -> Result<String> {
         let uri = url::Url::parse(
-            self.clone_url
+            self.url
                 .as_ref()
                 .ok_or(anyhow::anyhow!("Expected a clone url"))?,
         )?;
@@ -88,24 +82,13 @@ mod test {
     use super::*;
 
     #[test]
-    fn test_default_repository_name() {
-        let repository = RepositoryBuilder::default()
-            .clone_url("https://github.com/bosun-ai/fluyt.git")
-            .build()
-            .unwrap();
-
-        assert_eq!(repository.name, "bosun-ai/fluyt");
-        assert_eq!(repository.full_name, "bosun-ai/fluyt");
-    }
-
-    #[test]
     fn test_repository_url_parsing_and_validation() {
         let repository = RepositoryBuilder::default()
-            .clone_url("https://github.com/bosun-ai/fluyt.git")
+            .url("https://github.com/bosun-ai/fluyt.git")
             .build()
             .unwrap();
 
-        assert_eq!(repository.clone_url, "https://github.com/bosun-ai/fluyt");
+        assert_eq!(repository.url, "https://github.com/bosun-ai/fluyt");
 
         let invalid = [
             "http://github.com/bosun-ai/fluyt.git",
@@ -113,7 +96,7 @@ mod test {
         ];
 
         for url in invalid {
-            let result = RepositoryBuilder::default().clone_url(url).build();
+            let result = RepositoryBuilder::default().url(url).build();
 
             assert!(result
                 .unwrap_err()

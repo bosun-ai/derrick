@@ -9,7 +9,7 @@ pub use testing::TestingController;
 
 mod remote_nats;
 pub use remote_nats::RemoteNatsController;
-mod docker;
+pub mod docker;
 pub use docker::DockerController;
 
 #[async_trait]

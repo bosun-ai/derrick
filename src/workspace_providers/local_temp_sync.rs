@@ -15,8 +15,12 @@ impl LocalTempSyncProvider {
 
 #[async_trait]
 impl WorkspaceProvider for LocalTempSyncProvider {
-    async fn provision(&self, context: &WorkspaceContext) -> Result<Box<dyn WorkspaceController>> {
-        let controller = Box::new(LocalTempSyncController::new(&context.name));
+    async fn provision(&mut self, context: &WorkspaceContext) -> Result<Box<dyn WorkspaceController>> {
+        let controller = Box::new(LocalTempSyncController::initialize(&context.name).await);
+        controller.init().await?;
+        for repository in &context.repositories {
+            controller.provision_repositories(vec![repository.clone()]).await?;
+        }
         Ok(controller)
     }
 }

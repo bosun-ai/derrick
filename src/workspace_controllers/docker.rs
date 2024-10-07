@@ -11,8 +11,8 @@ use tracing::debug;
 use crate::WorkspaceController;
 use anyhow::Result;
 
-static ALPINE_IMAGE: &str = "alpine:3.20";
-static UBUNTU_IMAGE: &str = "ubuntu:noble";
+pub static ALPINE_IMAGE: &str = "alpine:3.20";
+pub static UBUNTU_IMAGE: &str = "ubuntu:noble";
 
 #[derive(Debug)]
 pub struct DockerController {
@@ -21,23 +21,8 @@ pub struct DockerController {
 }
 
 impl DockerController {
-    pub async fn start(docker: &Docker, name: &str) -> Result<Self> {
+    pub async fn start(docker: &Docker, base_image: &str, name: &str) -> Result<Self> {
         let name = format!("{}-{}", name, uuid::Uuid::new_v4());
-        let base_image = UBUNTU_IMAGE;
-
-        debug!("Creating container with image: {}", base_image);
-
-        docker
-            .create_image(
-                Some(CreateImageOptions {
-                    from_image: base_image,
-                    ..Default::default()
-                }),
-                None,
-                None,
-            )
-            .try_collect::<Vec<_>>()
-            .await?;
 
         let container_config = Config {
             image: Some(base_image),

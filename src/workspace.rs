@@ -111,7 +111,7 @@ impl Workspace {
     async fn clone_repository(&self) -> Result<()> {
         let inner = self.0.lock().await;
 
-        let url = escape(inner.repository.clone_url.as_str());
+        let url = escape(inner.repository.url.as_str());
 
         inner
             .adapter
@@ -122,7 +122,7 @@ impl Workspace {
     #[tracing::instrument(skip_all, fields(bosun.tracing=true), name = "workspace.update_remote")]
     async fn update_remote(&self) -> Result<()> {
         let inner = self.0.lock().await;
-        let url = inner.repository.clone_url.clone();
+        let url = inner.repository.url.clone();
 
         let cmd = format!("git remote set-url origin {}", escape(&url));
         inner.adapter.cmd(&cmd, None).await
@@ -202,14 +202,14 @@ impl Workspace {
                 let mut codebase_url: String = String::new();
                 {
                     let guard = self.0.lock().await;
-                    guard.repository.clone_url.clone_into(&mut codebase_url)
+                    guard.repository.url.clone_into(&mut codebase_url)
                 }
 
                 let github_url = github_session.add_token_to_url(&codebase_url).await?;
                 tracing::warn!("Token added to codebase url");
 
                 let mut inner = self.0.lock().await;
-                inner.repository.clone_url = github_url;
+                inner.repository.url = github_url;
             }
             Err(e) => {
                 tracing::warn!(error = ?e, "Could not authenticate with github, continuing anyway ...");
@@ -274,7 +274,7 @@ impl Workspace {
         branch_name: &str,
     ) -> Result<PullRequest> {
         let github_session = crate::github::GithubSession::try_new()?;
-        let repo_url = self.0.lock().await.repository.clone_url.clone();
+        let repo_url = self.0.lock().await.repository.url.clone();
         let main_branch = self
             .cmd_with_output(MAIN_BRANCH_CMD)
             .await?

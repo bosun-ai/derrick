@@ -27,13 +27,13 @@ impl WorkspaceContext {
 
 #[async_trait]
 pub trait WorkspaceProvider: Send + Sync {
-    async fn provision(&self, context: &WorkspaceContext) -> Result<Box<dyn WorkspaceController>>;
+    async fn provision(&mut self, context: &WorkspaceContext) -> Result<Box<dyn WorkspaceController>>;
 }
 
 pub async fn get_provider(provisioning_mode: String) -> Result<Box<dyn WorkspaceProvider>> {
     match provisioning_mode.as_str() {
         "local" => Ok(Box::new(LocalTempSyncProvider::new())),
-        "docker" => Ok(Box::new(docker::DockerProvider::new())),
+        "docker" => Ok(Box::new(docker::DockerProvider::initialize().await)),
         _ => {
             return Err(anyhow::anyhow!(
                 "Unsupported provisioning mode: {}",

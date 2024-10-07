@@ -1,5 +1,11 @@
 {
-  "name": "test-123",
-  "repositories": [],
+  "name": "swiftide-ask",
+  "repositories": [
+    {
+      "name": "swiftide-ask",
+      "path": "/code/swiftide-ask",
+      "url": "https://github.com/bosun-ai/swiftide-ask"
+    }
+  ],
   "setup_script": "rm /tmp/hello.txt; echo \"Hello World\" > /tmp/hello.txt"
 }

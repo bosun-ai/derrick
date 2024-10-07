@@ -57,6 +57,8 @@ def run_tests(provisioner_mode:)
   response = request(:post, "/workspaces/#{id}/cmd_with_output", { 'cmd' => 'echo hello' })
   raise "Expected output, got #{response.inspect}" unless response == "hello\n"
 
+  response = request(:post, "/workspaces/#{id}/cmd_with_output", { 'cmd' => 'ls ./code/swiftide-ask' })
+  raise "Expected output, got #{response.inspect}" unless response.include?("Cargo.toml")
 ensure
   # Kill the process
   Process.kill('TERM', pid)
