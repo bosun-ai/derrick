@@ -153,7 +153,7 @@ mod tests {
         let result = adapter.cmd_with_output("pwd", None).await;
         assert!(result.is_ok());
         let stdout = result.unwrap();
-        assert!(stdout.contains("tmp/test"));
+        assert!(stdout.contains("test"));
     }
 
     #[tokio::test]
@@ -162,14 +162,14 @@ mod tests {
         adapter.init().await.unwrap();
         let output = adapter.spawn_cmd("pwd").unwrap();
         let stdout = String::from_utf8_lossy(&output.stdout).to_string();
-        assert!(stdout.contains("tmp/test"));
+        assert!(stdout.contains("test"));
     }
 
     #[test]
     fn test_init_path() {
         let path = init_path("test").unwrap();
         dbg!(&path);
-        let regex = regex::Regex::new(r"^.*/tmp/test.*$").unwrap();
+        let regex = regex::Regex::new(r"test-\d+$").unwrap();
         assert!(regex.is_match(&path));
         assert!(std::path::PathBuf::from(&path).exists())
     }

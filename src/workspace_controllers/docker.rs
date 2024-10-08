@@ -3,9 +3,7 @@ use bollard::container::{Config, CreateContainerOptions, RemoveContainerOptions}
 use bollard::Docker;
 
 use bollard::exec::{CreateExecOptions, StartExecResults};
-use bollard::image::CreateImageOptions;
 use futures_util::stream::StreamExt;
-use futures_util::TryStreamExt;
 use tracing::debug;
 
 use crate::WorkspaceController;
@@ -39,7 +37,7 @@ impl DockerController {
             .await?
             .id;
 
-        debug!("Starting container with name: {}", id);
+        debug!("Starting container with name: {} and id {}", name, id);
 
         docker.start_container::<String>(&id, None).await?;
 
@@ -70,7 +68,7 @@ impl WorkspaceController for DockerController {
         Ok(())
     }
 
-    async fn cmd_with_output(&self, cmd: &str, working_dir: Option<&str>) -> Result<String> {
+    async fn cmd_with_output(&self, cmd: &str, _working_dir: Option<&str>) -> Result<String> {
         // TODO: Working dir
         let exec = self
             .docker

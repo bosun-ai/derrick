@@ -3,7 +3,6 @@ use anyhow::{Context, Result};
 use async_trait::async_trait;
 use regex;
 use std::process::Command;
-use std::sync::OnceLock;
 use std::{collections::HashMap, path::PathBuf};
 use tokio::sync::RwLock;
 use tracing::{debug, info, warn};
@@ -17,7 +16,6 @@ const ALLOWED_ENV: &[&str] = &["PATH", "CARGO_HOME", "RUST_HOME", "RUST_VERSION"
 //  - haven't decided what to do with stdout/stderr
 #[derive(Debug)]
 pub struct LocalTempSyncController {
-    name: String,
     path: String,
     whitelisted_env: RwLock<HashMap<String, String>>,
 }
@@ -43,7 +41,6 @@ impl LocalTempSyncController {
         }
 
         Self {
-            name: name.into(),
             path,
             whitelisted_env: RwLock::new(whitelisted_env),
         }
@@ -216,18 +213,14 @@ mod tests {
             .unwrap();
         let stdout = String::from_utf8_lossy(&output.stdout).to_string();
 
-        assert!(stdout.contains("tmp/test/subdir"));
-        assert!(adapter
-            .path(Some("subdir"))
-            .to_string_lossy()
-            .contains("tmp/test/subdir"));
+        assert_eq!(stdout.trim(), adapter.path(Some("subdir")).to_string_lossy());
     }
 
     #[test]
     fn test_init_path() {
         let path = init_path("test").unwrap();
         dbg!(&path);
-        let regex = regex::Regex::new(r"^.*/tmp/test$").unwrap();
+        let regex = regex::Regex::new(r"^.*/tmp/test-\d+$").unwrap();
         assert!(regex.is_match(&path));
         assert!(std::path::PathBuf::from(&path).exists())
     }

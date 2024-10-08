@@ -5,10 +5,8 @@ mod local_temp_sync;
 pub use local_temp_sync::LocalTempSyncController;
 
 mod testing;
-pub use testing::TestingController;
 
 mod remote_nats;
-pub use remote_nats::RemoteNatsController;
 pub mod docker;
 pub use docker::DockerController;
 

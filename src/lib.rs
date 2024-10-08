@@ -1,4 +1,5 @@
 mod config;
+mod docker;
 mod github;
 pub mod http_server;
 mod messaging;

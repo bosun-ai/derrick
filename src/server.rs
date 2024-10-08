@@ -2,7 +2,6 @@ use std::collections::HashMap;
 
 use crate::{WorkspaceContext, WorkspaceController, WorkspaceProvider};
 use anyhow::Result;
-use tracing::info;
 
 pub struct Server {
     context: WorkspaceContext,
@@ -22,7 +21,6 @@ impl Server {
         })
     }
 
-    //
     // HTTP Server endpoints:
     // POST /workspaces                                 creates a new workspace
     // DELETE /workspaces/:workspace_id                 destroys a workspace
@@ -35,7 +33,6 @@ impl Server {
     // POST /workspaces/:workspace_id/read_file         reads a file in the workspace
 
     pub async fn create_workspace(&mut self) -> Result<String> {
-        info!("Creating workspace");
         let controller = self.provider.provision(&self.context).await?;
         let id: String = uuid::Uuid::new_v4().to_string();
         controller.init().await?;
