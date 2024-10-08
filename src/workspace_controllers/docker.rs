@@ -123,8 +123,11 @@ impl WorkspaceController for DockerController {
         for repository in repositories {
             self.cmd(&format!("mkdir -p {}", repository.path), None)
                 .await?;
-            self.cmd(&format!("git clone {} {}", repository.url, repository.path), None)
-                .await?;
+            self.cmd(
+                &format!("git clone {} {}", repository.url, repository.path),
+                None,
+            )
+            .await?;
         }
         Ok(())
     }

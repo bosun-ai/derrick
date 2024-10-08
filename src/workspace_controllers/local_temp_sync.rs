@@ -31,10 +31,9 @@ fn scrub(output: &str) -> String {
 impl LocalTempSyncController {
     #[tracing::instrument]
     pub async fn initialize(name: &str) -> Self {
-        let path =
-            init_path(name)
-                .context("Could not create local temp directory")
-                .unwrap();
+        let path = init_path(name)
+            .context("Could not create local temp directory")
+            .unwrap();
 
         let mut whitelisted_env = HashMap::new();
         for (key, value) in std::env::vars() {
@@ -74,9 +73,7 @@ impl LocalTempSyncController {
     }
 
     fn path(&self, working_dir: Option<&str>) -> PathBuf {
-        let mut base_path = std::path::PathBuf::from(
-            self.path.clone()
-        );
+        let mut base_path = std::path::PathBuf::from(self.path.clone());
 
         let mut working_dir = std::path::PathBuf::from(working_dir.unwrap_or(""));
 
@@ -161,13 +158,10 @@ impl WorkspaceController for LocalTempSyncController {
             let path = path.join(repo.path.strip_prefix("/").unwrap_or(&repo.path));
             let path = path.to_string_lossy();
             info!("Making prefix {}", path);
-            self.cmd(&format!("mkdir -p {}", path), None)
-                .await?;
+            self.cmd(&format!("mkdir -p {}", path), None).await?;
             info!("Cloning repository {}", repo.url);
-            self.cmd(
-                &format!("git clone {} {}", repo.url, path),
-            None)
-            .await?;
+            self.cmd(&format!("git clone {} {}", repo.url, path), None)
+                .await?;
         }
         Ok(())
     }

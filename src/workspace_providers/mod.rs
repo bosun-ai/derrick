@@ -27,7 +27,10 @@ impl WorkspaceContext {
 
 #[async_trait]
 pub trait WorkspaceProvider: Send + Sync {
-    async fn provision(&mut self, context: &WorkspaceContext) -> Result<Box<dyn WorkspaceController>>;
+    async fn provision(
+        &mut self,
+        context: &WorkspaceContext,
+    ) -> Result<Box<dyn WorkspaceController>>;
 }
 
 pub async fn get_provider(provisioning_mode: String) -> Result<Box<dyn WorkspaceProvider>> {

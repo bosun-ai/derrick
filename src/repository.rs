@@ -21,9 +21,7 @@ pub struct Repository {
 
 impl Repository {
     pub fn from_url(url: impl Into<String>) -> RepositoryBuilder {
-        RepositoryBuilder::default()
-            .url(url.into())
-            .to_owned()
+        RepositoryBuilder::default().url(url.into()).to_owned()
     }
 
     pub fn builder() -> RepositoryBuilder {
@@ -42,9 +40,7 @@ impl RepositoryBuilder {
         let mut parts = self
             .url
             .as_ref()
-            .ok_or(anyhow::anyhow!(
-                "Expected url when building repository"
-            ))?
+            .ok_or(anyhow::anyhow!("Expected url when building repository"))?
             .split('/');
         let last_two = parts.by_ref().rev().take(2).collect::<Vec<&str>>();
 
