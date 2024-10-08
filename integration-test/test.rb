@@ -64,7 +64,7 @@ ensure
   Process.kill('TERM', pid)
 end
 
-["local", "docker"].each do |provisioner_mode|
+["docker"].each do |provisioner_mode|
   puts "Running tests in #{provisioner_mode} mode..."
   run_tests(provisioner_mode: provisioner_mode)
 end

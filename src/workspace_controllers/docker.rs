@@ -11,8 +11,7 @@ use tracing::debug;
 use crate::WorkspaceController;
 use anyhow::Result;
 
-pub static ALPINE_IMAGE: &str = "alpine:3.20";
-pub static UBUNTU_IMAGE: &str = "ubuntu:noble";
+pub static BASE_IMAGE: &str = "bosunai/build-baseimage";
 
 #[derive(Debug)]
 pub struct DockerController {
@@ -119,8 +118,14 @@ impl WorkspaceController for DockerController {
 
     async fn provision_repositories(
         &self,
-        _repositories: Vec<crate::repository::Repository>,
+        repositories: Vec<crate::repository::Repository>,
     ) -> Result<()> {
+        for repository in repositories {
+            self.cmd(&format!("mkdir -p {}", repository.path), None)
+                .await?;
+            self.cmd(&format!("git clone {} {}", repository.url, repository.path), None)
+                .await?;
+        }
         Ok(())
     }
 }

@@ -13,7 +13,7 @@ use crate::WorkspaceController;
 use tracing::{debug, info};
 
 use crate::{workspace_controllers::DockerController};
-use crate::workspace_controllers::docker::UBUNTU_IMAGE;
+use crate::workspace_controllers::docker::BASE_IMAGE;
 
 use super::{WorkspaceContext, WorkspaceProvider};
 
@@ -49,7 +49,7 @@ impl DockerProvider {
             panic!("Unsupported OS")
         };
 
-        let base_image: &str = UBUNTU_IMAGE;
+        let base_image: &str = BASE_IMAGE;
         Self::create_base_image(&docker, base_image).await.expect("Could not create base image");
 
         let provider = DockerProvider { docker, base_image: base_image.to_string() };
@@ -78,6 +78,7 @@ impl DockerProvider {
 impl WorkspaceProvider for DockerProvider {
     async fn provision(&mut self, context: &WorkspaceContext) -> Result<Box<dyn WorkspaceController>> {
         let controller = DockerController::start(&self.docker, &self.base_image, &context.name).await?;
+        controller.provision_repositories(context.repositories.clone()).await?;
         Ok(Box::new(controller))
     }
 }
