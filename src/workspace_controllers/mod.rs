@@ -6,8 +6,8 @@ pub use local_temp_sync::LocalTempSyncController;
 
 mod testing;
 
-mod remote_nats;
 pub mod docker;
+mod remote_nats;
 pub use docker::DockerController;
 
 #[async_trait]

@@ -119,10 +119,42 @@ impl WorkspaceController for DockerController {
         repositories: Vec<crate::repository::Repository>,
     ) -> Result<()> {
         for repository in repositories {
-            self.cmd(&format!("mkdir -p {}", repository.path), None)
+            // if the repository does not yet exist, we clone it
+            debug!("Provisioning repository: {}", repository.url);
+            let repository_listing = self
+                .cmd_with_output(&format!("ls {}/.git", repository.path), None)
                 .await?;
+            let has_repository = repository_listing.contains("config");
+            debug!("Has repository: {}, {}", has_repository, repository_listing);
+            if !has_repository {
+                debug!("Cloning repository: {}", repository.url);
+                self.cmd(&format!("mkdir -p {}", repository.path), None)
+                    .await?;
+                self.cmd(
+                    &format!("git clone {} {}", repository.url, repository.path),
+                    None,
+                )
+                .await?;
+            } else {
+                debug!("Pulling latest changes for repository: {}", repository.url);
+                // if the repository exists, we pull the latest changes, but first we add back the remote origin
+                self.cmd(
+                    &format!(
+                        "cd {} && git remote add origin {}",
+                        repository.path, repository.url
+                    ),
+                    None,
+                )
+                .await?;
+                self.cmd(
+                    &format!("cd {} && git pull origin master", repository.path),
+                    None,
+                )
+                .await?;
+            }
+            // remove the remote origin so that we don't leak the access token
             self.cmd(
-                &format!("git clone {} {}", repository.url, repository.path),
+                &format!("cd {} && git remote remove origin", repository.path),
                 None,
             )
             .await?;

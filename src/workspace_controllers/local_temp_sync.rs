@@ -213,7 +213,10 @@ mod tests {
             .unwrap();
         let stdout = String::from_utf8_lossy(&output.stdout).to_string();
 
-        assert_eq!(stdout.trim(), adapter.path(Some("subdir")).to_string_lossy());
+        assert_eq!(
+            stdout.trim(),
+            adapter.path(Some("subdir")).to_string_lossy()
+        );
     }
 
     #[test]
