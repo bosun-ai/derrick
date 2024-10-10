@@ -46,6 +46,44 @@ impl DockerController {
             container_id: id,
         })
     }
+
+    pub async fn start_with_mounts(
+        docker: &Docker,
+        base_image: &str,
+        name: &str,
+        mounts: Vec<(&str, &str)>,
+    ) -> Result<Self> {
+        let name = format!("{}-{}", name, uuid::Uuid::new_v4());
+
+        let container_config = Config {
+            image: Some(base_image),
+            tty: Some(true),
+            host_config: Some(bollard::models::HostConfig{
+                binds: Some(mounts.iter().map(|(host, container)| format!("{}:{}", host, container)).collect()),
+                ..Default::default()
+            }),
+            ..Default::default()
+        };
+
+        let container_options = Some(CreateContainerOptions {
+            name: name.as_str(),
+            platform: None,
+        });
+
+        let id = docker
+            .create_container::<&str, &str>(container_options, container_config)
+            .await?
+            .id;
+
+        debug!("Starting container with name: {} and id {}", name, id);
+
+        docker.start_container::<String>(&id, None).await?;
+
+        Ok(Self {
+            docker: docker.clone(),
+            container_id: id,
+        })
+    }
 }
 
 #[async_trait]
