@@ -1,17 +1,17 @@
 use anyhow::Result;
 use clap::Parser;
 
-use workspace_provider::{http_server, server};
+use derrick::{http_server, server};
 
 #[tokio::main]
 async fn main() -> Result<()> {
     tracing_subscriber::fmt::init();
 
     let opts: Opts = Opts::parse();
-    let provider = workspace_provider::get_provider(opts.provisioning_mode).await?;
+    let provider = derrick::get_provider(opts.provisioning_mode).await?;
     let workspace_config_path = opts.workspace_config_path;
 
-    let context = workspace_provider::WorkspaceContext::from_file(workspace_config_path)?;
+    let context = derrick::WorkspaceContext::from_file(workspace_config_path)?;
     let server = server::Server::create_server(context, provider)?;
 
     match opts.server_mode.as_str() {

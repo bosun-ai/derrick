@@ -561,6 +561,40 @@ dependencies = [
 ]
 
 [[package]]
+name = "derrick"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "async-nats",
+ "async-trait",
+ "base64 0.22.1",
+ "bollard",
+ "clap",
+ "derive_builder",
+ "dotenvy",
+ "dropshot",
+ "futures-util",
+ "http",
+ "itertools",
+ "jsonwebtoken",
+ "octocrab",
+ "rand",
+ "regex",
+ "schemars",
+ "serde",
+ "serde_json",
+ "shell-escape",
+ "test-log",
+ "tokio",
+ "tokio-util",
+ "tracing",
+ "tracing-subscriber",
+ "url",
+ "uuid",
+ "whoami",
+]
+
+[[package]]
 name = "digest"
 version = "0.10.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2873,40 +2907,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "36c1fec1a2bb5866f07c25f68c26e565c4c200aebb96d7e55710c19d3e8ac49b"
 dependencies = [
  "memchr",
-]
-
-[[package]]
-name = "workspace-provider"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "async-nats",
- "async-trait",
- "base64 0.22.1",
- "bollard",
- "clap",
- "derive_builder",
- "dotenvy",
- "dropshot",
- "futures-util",
- "http",
- "itertools",
- "jsonwebtoken",
- "octocrab",
- "rand",
- "regex",
- "schemars",
- "serde",
- "serde_json",
- "shell-escape",
- "test-log",
- "tokio",
- "tokio-util",
- "tracing",
- "tracing-subscriber",
- "url",
- "uuid",
- "whoami",
 ]
 
 [[package]]
