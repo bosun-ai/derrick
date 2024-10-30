@@ -1,6 +1,6 @@
-# Workspace Provider
+# Derrick Workspace Provider
 
-The workspace provider is responsible for setting up a workspace for an agent to run tasks in.
+The Derrick workspace provider is responsible for setting up a workspace for an agent to run tasks in.
 
 ## Motivation
 
@@ -47,7 +47,7 @@ Once the provider is started, it exposes a server that the agent controller can 
 ## Usage
 
 ```
-Usage: workspace-provider --provisioning-mode <PROVISIONING_MODE> --workspace-config-path <WORKSPACE_CONFIG_PATH> --server-mode <SERVER_MODE>
+Usage: derrick --provisioning-mode <PROVISIONING_MODE> --workspace-config-path <WORKSPACE_CONFIG_PATH> --server-mode <SERVER_MODE>
 
 Options:
   -p, --provisioning-mode <PROVISIONING_MODE>
@@ -75,5 +75,5 @@ Example config:
 Example invocation:
 
 ```bash
-workspace-provider -p local -s http -w config.json
+derrick -p local -s http -w config.json
 ```
