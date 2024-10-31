@@ -26,6 +26,7 @@ pub async fn serve_http(server: Server) -> Result<()> {
     api.register(cmd_with_output)?;
     api.register(write_file)?;
     api.register(read_file)?;
+    api.register(health)?;
 
     let server_mutex = Mutex::new(server);
 
@@ -60,6 +61,16 @@ pub async fn serve_http(server: Server) -> Result<()> {
 // POST /workspaces/:workspace_id/cmd_with_output   runs a command in the workspace and returns the output
 // POST /workspaces/:workspace_id/write_file        writes a file in the workspace
 // POST /workspaces/:workspace_id/read_file         reads a file in the workspace
+
+// GET /health                                    returns the health of the workspace provider
+
+#[endpoint {
+    method = GET,
+    path = "/health",
+}]
+async fn health(_rqctx: RequestContext<Mutex<Server>>) -> Result<HttpResponseOk<()>, HttpError> {
+    Ok(HttpResponseOk(()))
+}
 
 #[derive(Serialize, JsonSchema)]
 struct WorkspaceResponse {
