@@ -6,6 +6,7 @@ mod messaging;
 mod repository;
 pub mod server;
 pub mod service;
+pub mod traits;
 mod workspace;
 mod workspace_controllers;
 mod workspace_providers;

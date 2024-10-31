@@ -1,6 +1,8 @@
 use crate::repository::Repository;
+use crate::traits::{self, CodeCommands, Command, FileCommands, GitCommands, GithubCommands};
 use crate::workspace_controllers::WorkspaceController;
 use anyhow::Result;
+use async_trait::async_trait;
 use octocrab::models::pulls::PullRequest;
 use shell_escape::escape as escape_cow;
 use std::fmt::Debug;
@@ -288,5 +290,43 @@ impl Workspace {
         tracing::info!("Created merge request: {}", mr.url);
 
         Ok(mr)
+    }
+}
+
+// command_to_string is a helper function that converts a Command enum to a string
+fn command_to_shell_string(cmd: &traits::Command) -> String {
+    match cmd {
+        Command::Git(GitCommands::Commit { commit_message }) => {
+            format!("git commit -m {}", commit_message)
+        }
+        Command::Git(GitCommands::Clone { url }) => format!("git clone {}", url),
+        Command::Git(GitCommands::Checkout { branch }) => format!("git checkout {}", branch),
+        Command::Git(GitCommands::Reset) => "git reset".to_string(),
+        Command::Git(GitCommands::Push) => "git push".to_string(),
+        Command::Github(GithubCommands::CreatePullRequest { title, body }) => {
+            format!("gh pr create --title {} --body {}", title, body)
+        }
+        Command::File(FileCommands::Read { filename }) => format!("cat {}", filename),
+        Command::File(FileCommands::Write { filename, body }) => {
+            format!("echo {} > {}", body, filename)
+        }
+        Command::Code(CodeCommands::Search { query }) => format!("grep -r {} .", query),
+        Command::Code(CodeCommands::RunTests) => "cargo test".to_string(),
+        Command::UnsafeRaw(raw) => raw.clone(),
+    }
+}
+
+#[async_trait]
+impl traits::Workspace for Workspace {
+    async fn exec_cmd(&self, cmd: &traits::Command) -> Result<traits::CommandOutput> {
+        self.cmd_with_output(&command_to_shell_string(cmd)).await
+    }
+
+    async fn init(&self) -> Result<()> {
+        self.init().await
+    }
+
+    async fn teardown(self) -> Result<()> {
+        self.teardown().await
     }
 }
