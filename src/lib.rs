@@ -8,9 +8,10 @@ pub mod server;
 pub mod service;
 pub mod traits;
 mod workspace;
-mod workspace_controllers;
+pub mod workspace_controllers;
 mod workspace_providers;
 
+pub use repository::Repository;
 pub use workspace::Workspace;
 pub use workspace_controllers::WorkspaceController;
 pub use workspace_providers::get_provider;
