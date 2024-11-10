@@ -21,16 +21,11 @@ def request(method, path, body=nil)
   JSON.parse(response.body)
 end
 
-def run_tests(provisioner_mode:)
-  file_dir = File.dirname(__FILE__)
+def run_with_derrick(options)
+  command = "cargo run -- #{options.join(' ')}"
+  pid = Process.spawn(command)
+  puts "Running command: #{command} (PID: #{pid})"
 
-  cmd = "cargo run -- -p #{provisioner_mode} -s http -w #{file_dir}/test_config.json"
-  
-  # Run the command in a separate process
-  pid = Process.spawn(cmd)
-  puts "Running command: #{cmd} (PID: #{pid})"
-  
-  # Wait for the process to start listening on port 50080
   connected = false
   while !connected do
     begin
@@ -39,37 +34,49 @@ def run_tests(provisioner_mode:)
       sleep 0.3
     end
   end
-  
-  puts "Running tests..."
 
-  # Test the API
-  response = request(:get, '/workspaces')
-  raise "Expected empty workspaces, got #{response.inspect}" unless response["workspaces"] == []
-
-  response = request(:post, '/workspaces')
-  raise "Expected workspace ID, got #{response.inspect}" unless response['id']
-
-  id = response['id']
-
-  response = request(:get, '/workspaces')
-  raise "Expected empty workspaces, got #{response.inspect}" unless response.dig("workspaces", 0, "id") == id
-
-  response = request(:post, "/workspaces/#{id}/cmd_with_output", { 'cmd' => 'echo hello' })
-  raise "Expected output, got #{response.inspect}" unless response == "hello\n"
-
-  response = request(:post, "/workspaces/#{id}/cmd_with_output", { 'cmd' => 'ls ./code/swiftide-ask' })
-  raise "Expected output, got #{response.inspect}" unless response.include?("Cargo.toml")
-
-  # Test that the command is a shell script that can run `cd`
-  response = request(:post, "/workspaces/#{id}/cmd_with_output", { 'cmd' => 'cd ./code/swiftide-ask && ls' })
-  raise "Expected output, got #{response.inspect}" unless response.include?("Cargo.toml")
-
-  # Test that we can run multiline commands
-  response = request(:post, "/workspaces/#{id}/cmd_with_output", { 'cmd' => "echo hello\necho world" })
-  raise "Expected output, got #{response.inspect}" unless response.include?("hello\nworld\n")
+  yield pid
 ensure
-  # Kill the process
   Process.kill('TERM', pid)
+end
+
+def run_tests(provisioner_mode:)
+  file_dir = File.dirname(__FILE__)
+
+  options = ["-p", provisioner_mode, "-s", "http", "-w", "#{file_dir}/test_config.json"]
+  run_with_derrick(options) do |pid|
+    puts "Running tests..."
+
+    # Test the API
+    response = request(:get, '/workspaces')
+    raise "Expected empty workspaces, got #{response.inspect}" unless response["workspaces"] == []
+
+    response = request(:post, '/workspaces')
+    raise "Expected workspace ID, got #{response.inspect}" unless response['id']
+
+    id = response['id']
+
+    response = request(:get, '/workspaces')
+    raise "Expected empty workspaces, got #{response.inspect}" unless response.dig("workspaces", 0, "id") == id
+
+    response = request(:post, "/workspaces/#{id}/cmd_with_output", { 'cmd' => 'echo hello' })
+    raise "Expected output, got #{response.inspect}" unless response == "hello\n"
+
+    response = request(:post, "/workspaces/#{id}/cmd_with_output", { 'cmd' => 'ls ./code/swiftide-ask' })
+    raise "Expected output, got #{response.inspect}" unless response.include?("Cargo.toml")
+
+    # Test that the command is a shell script that can run `cd`
+    response = request(:post, "/workspaces/#{id}/cmd_with_output", { 'cmd' => 'cd ./code/swiftide-ask && ls' })
+    raise "Expected output, got #{response.inspect}" unless response.include?("Cargo.toml")
+
+    # Test that we can run multiline commands
+    response = request(:post, "/workspaces/#{id}/cmd_with_output", { 'cmd' => "echo hello\necho world" })
+    raise "Expected output, got #{response.inspect}" unless response.include?("hello\nworld\n")
+
+    # Test that the setup script ran successfully
+    response = request(:post, "/workspaces/#{id}/cmd_with_output", { 'cmd' => 'cat /tmp/hello.txt' })
+    raise "Expected output, got #{response.inspect}" unless response.include?("Hello World")
+  end
 end
 
 ["docker"].each do |provisioner_mode|

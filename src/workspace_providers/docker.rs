@@ -76,6 +76,13 @@ impl WorkspaceProvider for DockerProvider {
         controller
             .provision_repositories(context.repositories.clone())
             .await?;
+
+        // TODO we should cache the docker image after the setup script has run so subsequent
+        // provisioning is faster
+        controller
+            .cmd_with_output(context.setup_script.as_str(), Some("/"))
+            .await?;
+
         Ok(Box::new(controller))
     }
 }
