@@ -64,12 +64,19 @@ pub async fn serve_http(server: Server) -> Result<()> {
 
 // GET /health                                    returns the health of the workspace provider
 
+#[derive(Serialize, JsonSchema)]
+struct HealthResponse {
+    healthy: bool,
+}
+
 #[endpoint {
     method = GET,
     path = "/health",
 }]
-async fn health(_rqctx: RequestContext<Mutex<Server>>) -> Result<HttpResponseOk<()>, HttpError> {
-    Ok(HttpResponseOk(()))
+async fn health(
+    _rqctx: RequestContext<Mutex<Server>>,
+) -> Result<HttpResponseOk<HealthResponse>, HttpError> {
+    Ok(HttpResponseOk(HealthResponse { healthy: true }))
 }
 
 #[derive(Serialize, JsonSchema)]
