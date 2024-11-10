@@ -59,6 +59,14 @@ def run_tests(provisioner_mode:)
 
   response = request(:post, "/workspaces/#{id}/cmd_with_output", { 'cmd' => 'ls ./code/swiftide-ask' })
   raise "Expected output, got #{response.inspect}" unless response.include?("Cargo.toml")
+
+  # Test that the command is a shell script that can run `cd`
+  response = request(:post, "/workspaces/#{id}/cmd_with_output", { 'cmd' => 'cd ./code/swiftide-ask && ls' })
+  raise "Expected output, got #{response.inspect}" unless response.include?("Cargo.toml")
+
+  # Test that we can run multiline commands
+  response = request(:post, "/workspaces/#{id}/cmd_with_output", { 'cmd' => "echo hello\necho world" })
+  raise "Expected output, got #{response.inspect}" unless response.include?("hello\nworld\n")
 ensure
   # Kill the process
   Process.kill('TERM', pid)

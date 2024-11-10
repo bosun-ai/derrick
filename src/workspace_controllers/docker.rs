@@ -58,8 +58,13 @@ impl DockerController {
         let container_config = Config {
             image: Some(base_image),
             tty: Some(true),
-            host_config: Some(bollard::models::HostConfig{
-                binds: Some(mounts.iter().map(|(host, container)| format!("{}:{}", host, container)).collect()),
+            host_config: Some(bollard::models::HostConfig {
+                binds: Some(
+                    mounts
+                        .iter()
+                        .map(|(host, container)| format!("{}:{}", host, container))
+                        .collect(),
+                ),
                 ..Default::default()
             }),
             ..Default::default()
@@ -115,7 +120,7 @@ impl WorkspaceController for DockerController {
                 CreateExecOptions {
                     attach_stdout: Some(true),
                     attach_stderr: Some(true),
-                    cmd: Some(cmd.split_whitespace().map(String::from).collect()),
+                    cmd: Some(vec!["sh", "-c", cmd]),
                     ..Default::default()
                 },
             )
