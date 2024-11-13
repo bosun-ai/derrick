@@ -132,7 +132,7 @@ impl WorkspaceController for DockerController {
                 CreateExecOptions {
                     attach_stdout: Some(true),
                     attach_stderr: Some(true),
-                    cmd: Some(cmd.split(' ').collect()),
+                    cmd: Some(vec!["sh", "-c", cmd]),
                     env: Some(env_strings.iter().map(|s| s.as_str()).collect()),
                     ..Default::default()
                 },

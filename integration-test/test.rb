@@ -51,31 +51,38 @@ def run_tests(provisioner_mode:)
     response = request(:get, '/workspaces')
     raise "Expected empty workspaces, got #{response.inspect}" unless response["workspaces"] == []
 
-    response = request(:post, '/workspaces')
+    response = request(:post, '/workspaces', { 'env' => {} })
     raise "Expected workspace ID, got #{response.inspect}" unless response['id']
 
     id = response['id']
 
+    puts "Test that we can get the workspace"
     response = request(:get, '/workspaces')
     raise "Expected empty workspaces, got #{response.inspect}" unless response.dig("workspaces", 0, "id") == id
 
+    puts "Test that we can run a command"
     response = request(:post, "/workspaces/#{id}/cmd_with_output", { 'cmd' => 'echo hello' })
     raise "Expected output, got #{response.inspect}" unless response == "hello\n"
 
+    puts "Test that we can list files in the workspace"
     response = request(:post, "/workspaces/#{id}/cmd_with_output", { 'cmd' => 'ls ./code/swiftide-ask' })
     raise "Expected output, got #{response.inspect}" unless response.include?("Cargo.toml")
 
-    # Test that the command is a shell script that can run `cd`
+    puts "Test that we can run a command in the workspace"
     response = request(:post, "/workspaces/#{id}/cmd_with_output", { 'cmd' => 'cd ./code/swiftide-ask && ls' })
     raise "Expected output, got #{response.inspect}" unless response.include?("Cargo.toml")
 
-    # Test that we can run multiline commands
+    puts "Test that we can run multiline commands"
     response = request(:post, "/workspaces/#{id}/cmd_with_output", { 'cmd' => "echo hello\necho world" })
     raise "Expected output, got #{response.inspect}" unless response.include?("hello\nworld\n")
 
-    # Test that the setup script ran successfully
+    puts "Test that the setup script ran successfully"
     response = request(:post, "/workspaces/#{id}/cmd_with_output", { 'cmd' => 'cat /tmp/hello.txt' })
     raise "Expected output, got #{response.inspect}" unless response.include?("Hello World")
+
+    puts "Test that we can set environment variables"
+    response = request(:post, "/workspaces/#{id}/cmd_with_output", { 'cmd' => 'echo $HELLO', 'env' => { 'HELLO' => 'WORLD' } })
+    raise "Expected output, got #{response.inspect}" unless response.include?("WORLD")
   end
 end
 
