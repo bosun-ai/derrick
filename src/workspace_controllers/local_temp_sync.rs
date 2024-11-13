@@ -113,16 +113,28 @@ impl WorkspaceController for LocalTempSyncController {
     }
 
     #[tracing::instrument(skip(self), fields(cmd = scrub(cmd)))]
-    async fn cmd(&self, cmd: &str, working_dir: Option<&str>) -> Result<()> {
-        let envs = self.whitelisted_env.read().await.clone();
+    async fn cmd(
+        &self,
+        cmd: &str,
+        working_dir: Option<&str>,
+        env: HashMap<String, String>,
+    ) -> Result<()> {
+        let mut envs = self.whitelisted_env.read().await.clone();
+        envs.extend(env);
         self.spawn_cmd(cmd, working_dir, &envs)
             .map(handle_command_result)?
             .map(|_| ())
     }
 
     #[tracing::instrument(skip(self), fields(cmd = scrub(cmd)))]
-    async fn cmd_with_output(&self, cmd: &str, working_dir: Option<&str>) -> Result<String> {
-        let envs = self.whitelisted_env.read().await.clone();
+    async fn cmd_with_output(
+        &self,
+        cmd: &str,
+        working_dir: Option<&str>,
+        env: HashMap<String, String>,
+    ) -> Result<String> {
+        let mut envs = self.whitelisted_env.read().await.clone();
+        envs.extend(env);
         self.spawn_cmd(cmd, working_dir, &envs)
             .map(handle_command_result)?
     }
@@ -155,10 +167,15 @@ impl WorkspaceController for LocalTempSyncController {
             let path = path.join(repo.path.strip_prefix("/").unwrap_or(&repo.path));
             let path = path.to_string_lossy();
             info!("Making prefix {}", path);
-            self.cmd(&format!("mkdir -p {}", path), None).await?;
-            info!("Cloning repository {}", repo.url);
-            self.cmd(&format!("git clone {} {}", repo.url, path), None)
+            self.cmd(&format!("mkdir -p {}", path), None, HashMap::new())
                 .await?;
+            info!("Cloning repository {}", repo.url);
+            self.cmd(
+                &format!("git clone {} {}", repo.url, path),
+                None,
+                HashMap::new(),
+            )
+            .await?;
         }
         Ok(())
     }
@@ -186,7 +203,7 @@ mod tests {
     async fn test_cmd_with_output() {
         let adapter = LocalTempSyncController::initialize("test").await;
         adapter.init().await.unwrap();
-        let result = adapter.cmd_with_output("pwd", None).await;
+        let result = adapter.cmd_with_output("pwd", None, HashMap::new()).await;
         assert!(result.is_ok());
         let stdout = result.unwrap();
         assert!(stdout.contains("tmp/test"));
@@ -241,7 +258,7 @@ mod tests {
     async fn test_cmd_valid() {
         let adapter = LocalTempSyncController::initialize("test").await;
         adapter.init().await.unwrap();
-        let result = adapter.cmd("ls", None).await;
+        let result = adapter.cmd("ls", None, HashMap::new()).await;
         println!("{:#?}", result);
         assert!(result.is_ok());
     }
@@ -250,7 +267,7 @@ mod tests {
     async fn test_cmd_invalid() {
         let adapter = LocalTempSyncController::initialize("test").await;
         adapter.init().await.unwrap();
-        let result = adapter.cmd("invalid command", None).await;
+        let result = adapter.cmd("invalid command", None, HashMap::new()).await;
         assert!(result.is_err());
     }
 
@@ -258,9 +275,14 @@ mod tests {
     async fn test_piping_a_command() {
         let adapter = LocalTempSyncController::initialize("test").await;
         adapter.init().await.unwrap();
-        adapter.cmd("echo 'hello' > test.txt", None).await.unwrap();
+        adapter
+            .cmd("echo 'hello' > test.txt", None, HashMap::new())
+            .await
+            .unwrap();
         // check if file was created
-        let result = adapter.cmd("cat test.txt | grep 'hello'", None).await;
+        let result = adapter
+            .cmd("cat test.txt | grep 'hello'", None, HashMap::new())
+            .await;
         dbg!(&result);
         assert!(result.is_ok());
     }
@@ -273,7 +295,9 @@ mod tests {
             .write_file("write.txt", "Hello, world!", None)
             .await
             .expect("Could not write file");
-        let result = adapter.cmd_with_output("cat write.txt", None).await;
+        let result = adapter
+            .cmd_with_output("cat write.txt", None, HashMap::new())
+            .await;
         assert!(result.is_ok());
         assert_eq!(result.unwrap(), "Hello, world!");
 
@@ -281,7 +305,9 @@ mod tests {
             .write_file("write.txt", "Hello, back!", None)
             .await
             .unwrap();
-        let result = adapter.cmd_with_output("cat write.txt", None).await;
+        let result = adapter
+            .cmd_with_output("cat write.txt", None, HashMap::new())
+            .await;
         assert!(result.is_ok());
         assert_eq!(result.unwrap(), "Hello, back!");
     }
@@ -330,7 +356,10 @@ mod tests {
         let adapter = LocalTempSyncController::initialize("whitelisted_env").await;
         adapter.init().await.unwrap();
 
-        let env = adapter.cmd_with_output("printenv", None).await.unwrap();
+        let env = adapter
+            .cmd_with_output("printenv", None, HashMap::new())
+            .await
+            .unwrap();
 
         // In tests we only have path available, so just check that
         // We cannot reliably set env variables in test to to multithreading

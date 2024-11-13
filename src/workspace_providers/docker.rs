@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use async_trait::async_trait;
 
 use anyhow::Result;
@@ -70,6 +72,7 @@ impl WorkspaceProvider for DockerProvider {
     async fn provision(
         &mut self,
         context: &WorkspaceContext,
+        env: HashMap<String, String>,
     ) -> Result<Box<dyn WorkspaceController>> {
         let controller =
             DockerController::start(&self.docker, &self.base_image, &context.name).await?;
@@ -80,7 +83,7 @@ impl WorkspaceProvider for DockerProvider {
         // TODO we should cache the docker image after the setup script has run so subsequent
         // provisioning is faster
         controller
-            .cmd_with_output(context.setup_script.as_str(), Some("/"))
+            .cmd_with_output(context.setup_script.as_str(), Some("/"), env)
             .await?;
 
         Ok(Box::new(controller))

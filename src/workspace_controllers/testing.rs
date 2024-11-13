@@ -2,8 +2,8 @@ use crate::workspace_controllers::WorkspaceController;
 use anyhow::{Context, Result};
 use async_trait::async_trait;
 use rand::Rng;
-use std::fmt::Debug;
 use std::process::Command;
+use std::{collections::HashMap, fmt::Debug};
 use tracing::{debug, warn};
 
 // Runs commands in a local temporary directory
@@ -27,7 +27,12 @@ impl TestingController {
     }
 
     #[tracing::instrument(skip(self), name = "TestingAdapter#spawn_cmd")]
-    fn spawn_cmd(&self, cmd: &str) -> Result<std::process::Output> {
+    fn spawn_cmd(
+        &self,
+        cmd: &str,
+        _working_dir: Option<&str>,
+        _env: HashMap<String, String>,
+    ) -> Result<std::process::Output> {
         // Never push in tests
         if cmd.contains("git push") {
             return Ok(std::process::Output {
@@ -90,16 +95,26 @@ impl WorkspaceController for TestingController {
     }
 
     #[tracing::instrument(skip(self), name = "TestingAdapter#cmd")]
-    async fn cmd(&self, cmd: &str, _working_dir: Option<&str>) -> Result<()> {
-        self.spawn_cmd(cmd)
+    async fn cmd(
+        &self,
+        cmd: &str,
+        _working_dir: Option<&str>,
+        _env: HashMap<String, String>,
+    ) -> Result<()> {
+        self.spawn_cmd(cmd, _working_dir, _env)
             .map(handle_command_result)
             .context("Could not run command")?
             .map(|_| ())
     }
 
     #[tracing::instrument(skip(self), name = "TestingAdapter#cmd_with_output")]
-    async fn cmd_with_output(&self, cmd: &str, _working_dir: Option<&str>) -> Result<String> {
-        self.spawn_cmd(cmd)
+    async fn cmd_with_output(
+        &self,
+        cmd: &str,
+        _working_dir: Option<&str>,
+        _env: HashMap<String, String>,
+    ) -> Result<String> {
+        self.spawn_cmd(cmd, _working_dir, _env)
             .map(handle_command_result)?
             .context("Could not run command")
     }
@@ -150,7 +165,7 @@ mod tests {
     async fn test_cmd_with_output() {
         let adapter = TestingController::new("test");
         adapter.init().await.unwrap();
-        let result = adapter.cmd_with_output("pwd", None).await;
+        let result = adapter.cmd_with_output("pwd", None, HashMap::new()).await;
         assert!(result.is_ok());
         let stdout = result.unwrap();
         assert!(stdout.contains("test"));
@@ -160,7 +175,7 @@ mod tests {
     async fn test_sets_path_correctly_for_run_cmd() {
         let adapter = TestingController::new("test");
         adapter.init().await.unwrap();
-        let output = adapter.spawn_cmd("pwd").unwrap();
+        let output = adapter.spawn_cmd("pwd", None, HashMap::new()).unwrap();
         let stdout = String::from_utf8_lossy(&output.stdout).to_string();
         assert!(stdout.contains("test"));
     }
@@ -187,7 +202,7 @@ mod tests {
     async fn test_cmd_valid() {
         let adapter = TestingController::new("test");
         adapter.init().await.unwrap();
-        let result = adapter.cmd("ls", None).await;
+        let result = adapter.cmd("ls", None, HashMap::new()).await;
         println!("{:#?}", result);
         assert!(result.is_ok());
     }
@@ -196,9 +211,14 @@ mod tests {
     async fn test_piping_a_command() {
         let adapter = TestingController::new("test");
         adapter.init().await.unwrap();
-        adapter.cmd("echo 'hello' > test.txt", None).await.unwrap();
+        adapter
+            .cmd("echo 'hello' > test.txt", None, HashMap::new())
+            .await
+            .unwrap();
         // check if file was created
-        let result = adapter.cmd("cat test.txt | grep 'hello'", None).await;
+        let result = adapter
+            .cmd("cat test.txt | grep 'hello'", None, HashMap::new())
+            .await;
         assert!(result.is_ok());
     }
 
@@ -210,7 +230,9 @@ mod tests {
             .write_file("test.txt", "Hello, world!", None)
             .await
             .expect("Could not write file");
-        let result = adapter.cmd_with_output("cat test.txt", None).await;
+        let result = adapter
+            .cmd_with_output("cat test.txt", None, HashMap::new())
+            .await;
         assert!(result.is_ok());
         assert_eq!(result.unwrap(), "Hello, world!");
 
@@ -218,7 +240,9 @@ mod tests {
             .write_file("test.txt", "Hello, back!", None)
             .await
             .unwrap();
-        let result = adapter.cmd_with_output("cat test.txt", None).await;
+        let result = adapter
+            .cmd_with_output("cat test.txt", None, HashMap::new())
+            .await;
         assert!(result.is_ok());
         assert_eq!(result.unwrap(), "Hello, back!");
     }

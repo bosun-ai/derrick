@@ -5,8 +5,8 @@ use crate::messaging;
 use async_trait::async_trait;
 use regex;
 use serde::{de::DeserializeOwned, Serialize};
-use std::fmt::Debug;
 use std::sync::OnceLock;
+use std::{collections::HashMap, fmt::Debug};
 use tracing::{debug, warn};
 
 // Runs commands on a remote workspace using nats
@@ -33,6 +33,7 @@ impl RemoteNatsController {
         &self,
         cmd: &str,
         _working_dir: Option<&str>,
+        _env: HashMap<String, String>,
     ) -> std::result::Result<std::process::Output, std::io::Error> {
         debug!(cmd = scrub(cmd), "Running command");
         todo!()
@@ -79,15 +80,25 @@ impl WorkspaceController for RemoteNatsController {
     }
 
     #[tracing::instrument(fields(cmd = scrub(cmd)))]
-    async fn cmd(&self, cmd: &str, working_dir: Option<&str>) -> Result<()> {
-        self.spawn_cmd(cmd, working_dir)
+    async fn cmd(
+        &self,
+        cmd: &str,
+        working_dir: Option<&str>,
+        env: HashMap<String, String>,
+    ) -> Result<()> {
+        self.spawn_cmd(cmd, working_dir, env)
             .map(handle_command_result)?
             .map(|_| ())
     }
 
     #[tracing::instrument(fields(cmd = scrub(cmd)))]
-    async fn cmd_with_output(&self, cmd: &str, working_dir: Option<&str>) -> Result<String> {
-        self.spawn_cmd(cmd, working_dir)
+    async fn cmd_with_output(
+        &self,
+        cmd: &str,
+        working_dir: Option<&str>,
+        env: HashMap<String, String>,
+    ) -> Result<String> {
+        self.spawn_cmd(cmd, working_dir, env)
             .map(handle_command_result)?
     }
 

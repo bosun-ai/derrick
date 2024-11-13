@@ -5,6 +5,7 @@ use anyhow::Result;
 use async_trait::async_trait;
 use octocrab::models::pulls::PullRequest;
 use shell_escape::escape as escape_cow;
+use std::collections::HashMap;
 use std::fmt::Debug;
 use std::sync::Arc;
 use tokio::sync::Mutex;
@@ -56,10 +57,10 @@ impl Workspace {
     }
 
     #[tracing::instrument(skip(self), fields(bosun.tracing=true), name = "workspace.cmd", err, ret)]
-    pub async fn cmd(&self, cmd: &str) -> Result<()> {
+    pub async fn cmd(&self, cmd: &str, env: HashMap<String, String>) -> Result<()> {
         let inner = self.0.lock().await;
 
-        inner.adapter.cmd(cmd, None).await
+        inner.adapter.cmd(cmd, None, env).await
     }
 
     pub async fn repository(&self) -> Repository {
@@ -75,10 +76,10 @@ impl Workspace {
         err,
         ret
     )]
-    pub async fn cmd_with_output(&self, cmd: &str) -> Result<String> {
+    pub async fn cmd_with_output(&self, cmd: &str, env: HashMap<String, String>) -> Result<String> {
         let inner = self.0.lock().await;
 
-        inner.adapter.cmd_with_output(cmd, None).await
+        inner.adapter.cmd_with_output(cmd, None, env).await
     }
 
     #[tracing::instrument(
@@ -106,7 +107,11 @@ impl Workspace {
     async fn repository_exists(&self) -> bool {
         let inner = self.0.lock().await;
 
-        inner.adapter.cmd("ls -A .git", None).await.is_ok()
+        inner
+            .adapter
+            .cmd("ls -A .git", None, HashMap::new())
+            .await
+            .is_ok()
     }
 
     #[tracing::instrument(skip_all, fields(bosun.tracing=true), name = "workspace.clone_repository")]
@@ -117,7 +122,7 @@ impl Workspace {
 
         inner
             .adapter
-            .cmd(&format!("git clone {} .", url), None)
+            .cmd(&format!("git clone {} .", url), None, HashMap::new())
             .await
     }
 
@@ -127,7 +132,7 @@ impl Workspace {
         let url = inner.repository.url.clone();
 
         let cmd = format!("git remote set-url origin {}", escape(&url));
-        inner.adapter.cmd(&cmd, None).await
+        inner.adapter.cmd(&cmd, None, HashMap::new()).await
     }
 
     #[tracing::instrument(skip_all, fields(bosun.tracing=true), name = "workspace.clean_repository")]
@@ -143,7 +148,7 @@ impl Workspace {
         ];
 
         for cmd in cmds {
-            inner.adapter.cmd(cmd, None).await?;
+            inner.adapter.cmd(cmd, None, HashMap::new()).await?;
         }
         Ok(())
     }
@@ -166,6 +171,7 @@ impl Workspace {
                     .cmd(
                         format!("git config user.email \"{}\"", bot_email).as_str(),
                         None,
+                        HashMap::new(),
                     )
                     .await?;
                 inner
@@ -173,17 +179,22 @@ impl Workspace {
                     .cmd(
                         format!("git config user.name \"{}\"", bot_username).as_str(),
                         None,
+                        HashMap::new(),
                     )
                     .await?;
             }
             Err(_e) => {
                 inner
                     .adapter
-                    .cmd("git config user.email \"swabbie@bosun.ai\"", None)
+                    .cmd(
+                        "git config user.email \"swabbie@bosun.ai\"",
+                        None,
+                        HashMap::new(),
+                    )
                     .await?;
                 inner
                     .adapter
-                    .cmd("git config user.name \"Swabbie\"", None)
+                    .cmd("git config user.name \"Swabbie\"", None, HashMap::new())
                     .await?;
             }
         }
@@ -229,7 +240,7 @@ impl Workspace {
             .unwrap_or_else(|| format!("generated/{}", uuid::Uuid::new_v4()));
 
         let cmd = format!("git switch -c {}", name);
-        inner.adapter.cmd(&cmd, None).await?;
+        inner.adapter.cmd(&cmd, None, HashMap::new()).await?;
         Ok(name)
     }
 
@@ -248,15 +259,15 @@ impl Workspace {
                     .join(" ")
             );
 
-            inner.adapter.cmd(&add_cmd, None).await?;
+            inner.adapter.cmd(&add_cmd, None, HashMap::new()).await?;
 
             let cmd = format!("git commit -m {}", escape(message));
-            inner.adapter.cmd(&cmd, None).await
+            inner.adapter.cmd(&cmd, None, HashMap::new()).await
         } else {
             let add_cmd = "git add .";
-            inner.adapter.cmd(add_cmd, None).await?;
+            inner.adapter.cmd(add_cmd, None, HashMap::new()).await?;
             let cmd = format!("git commit -m {}", escape(message));
-            inner.adapter.cmd(&cmd, None).await
+            inner.adapter.cmd(&cmd, None, HashMap::new()).await
         }
     }
 
@@ -265,7 +276,7 @@ impl Workspace {
         let inner = self.0.lock().await;
 
         let cmd = format!("git push origin HEAD:{}", escape(target_branch));
-        inner.adapter.cmd(&cmd, None).await
+        inner.adapter.cmd(&cmd, None, HashMap::new()).await
     }
 
     #[tracing::instrument(skip_all, err)]
@@ -278,7 +289,7 @@ impl Workspace {
         let github_session = crate::github::GithubSession::try_new()?;
         let repo_url = self.0.lock().await.repository.url.clone();
         let main_branch = self
-            .cmd_with_output(MAIN_BRANCH_CMD)
+            .cmd_with_output(MAIN_BRANCH_CMD, HashMap::new())
             .await?
             .trim()
             .to_owned();
@@ -319,7 +330,8 @@ fn command_to_shell_string(cmd: &traits::Command) -> String {
 #[async_trait]
 impl traits::Workspace for Workspace {
     async fn exec_cmd(&self, cmd: &traits::Command) -> Result<traits::CommandOutput> {
-        self.cmd_with_output(&command_to_shell_string(cmd)).await
+        self.cmd_with_output(&command_to_shell_string(cmd), HashMap::new())
+            .await
     }
 
     async fn init(&self) -> Result<()> {

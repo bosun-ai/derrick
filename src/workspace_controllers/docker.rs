@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use async_trait::async_trait;
 use bollard::container::{Config, CreateContainerOptions, RemoveContainerOptions};
 use bollard::Docker;
@@ -111,7 +113,17 @@ impl WorkspaceController for DockerController {
         Ok(())
     }
 
-    async fn cmd_with_output(&self, cmd: &str, _working_dir: Option<&str>) -> Result<String> {
+    async fn cmd_with_output(
+        &self,
+        cmd: &str,
+        _working_dir: Option<&str>,
+        env: HashMap<String, String>,
+    ) -> Result<String> {
+        let env_strings: Vec<String> = env
+            .into_iter()
+            .map(|(k, v)| format!("{}={}", k, v))
+            .collect();
+
         // TODO: Working dir
         let exec = self
             .docker
@@ -120,7 +132,8 @@ impl WorkspaceController for DockerController {
                 CreateExecOptions {
                     attach_stdout: Some(true),
                     attach_stderr: Some(true),
-                    cmd: Some(vec!["sh", "-c", cmd]),
+                    cmd: Some(cmd.split(' ').collect()),
+                    env: Some(env_strings.iter().map(|s| s.as_str()).collect()),
                     ..Default::default()
                 },
             )
@@ -141,19 +154,28 @@ impl WorkspaceController for DockerController {
         Ok(response)
     }
 
-    async fn cmd(&self, cmd: &str, working_dir: Option<&str>) -> Result<()> {
-        self.cmd_with_output(cmd, working_dir).await?;
+    async fn cmd(
+        &self,
+        cmd: &str,
+        working_dir: Option<&str>,
+        env: HashMap<String, String>,
+    ) -> Result<()> {
+        self.cmd_with_output(cmd, working_dir, env).await?;
         Ok(())
     }
 
     async fn write_file(&self, path: &str, content: &str, working_dir: Option<&str>) -> Result<()> {
-        self.cmd(&format!("echo {} > {}", content, path), working_dir)
-            .await?;
+        self.cmd(
+            &format!("echo {} > {}", content, path),
+            working_dir,
+            HashMap::new(),
+        )
+        .await?;
         Ok(())
     }
 
     async fn read_file(&self, path: &str, working_dir: Option<&str>) -> Result<String> {
-        self.cmd_with_output(&format!("cat {}", path), working_dir)
+        self.cmd_with_output(&format!("cat {}", path), working_dir, HashMap::new())
             .await
     }
 
@@ -165,17 +187,26 @@ impl WorkspaceController for DockerController {
             // if the repository does not yet exist, we clone it
             debug!("Provisioning repository: {}", repository.url);
             let repository_listing = self
-                .cmd_with_output(&format!("ls {}/.git", repository.path), None)
+                .cmd_with_output(
+                    &format!("ls {}/.git", repository.path),
+                    None,
+                    HashMap::new(),
+                )
                 .await?;
             let has_repository = repository_listing.contains("config");
             debug!("Has repository: {}, {}", has_repository, repository_listing);
             if !has_repository {
                 debug!("Cloning repository: {}", repository.url);
-                self.cmd(&format!("mkdir -p {}", repository.path), None)
-                    .await?;
+                self.cmd(
+                    &format!("mkdir -p {}", repository.path),
+                    None,
+                    HashMap::new(),
+                )
+                .await?;
                 self.cmd(
                     &format!("git clone {} {}", repository.url, repository.path),
                     None,
+                    HashMap::new(),
                 )
                 .await?;
             } else {
@@ -187,11 +218,13 @@ impl WorkspaceController for DockerController {
                         repository.path, repository.url
                     ),
                     None,
+                    HashMap::new(),
                 )
                 .await?;
                 self.cmd(
                     &format!("cd {} && git pull origin master", repository.path),
                     None,
+                    HashMap::new(),
                 )
                 .await?;
             }
@@ -199,6 +232,7 @@ impl WorkspaceController for DockerController {
             self.cmd(
                 &format!("cd {} && git remote remove origin", repository.path),
                 None,
+                HashMap::new(),
             )
             .await?;
         }

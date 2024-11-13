@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use anyhow::Result;
 
 use dropshot::{
@@ -89,18 +91,24 @@ struct WorkspaceListResponse {
     workspaces: Vec<WorkspaceResponse>,
 }
 
+#[derive(Deserialize, JsonSchema)]
+struct CreateWorkspaceRequest {
+    env: Option<HashMap<String, String>>,
+}
+
 #[endpoint {
     method = POST,
     path = "/workspaces",
 }]
 async fn create_workspace(
     rqctx: RequestContext<Mutex<Server>>,
+    body: TypedBody<CreateWorkspaceRequest>,
 ) -> Result<HttpResponseOk<WorkspaceResponse>, HttpError> {
     let id = rqctx
         .context()
         .lock()
         .await
-        .create_workspace()
+        .create_workspace(body.into_inner().env.unwrap_or_default())
         .await
         .map_err(|e| {
             tracing::error!("Failed to create workspace: {:?}", e);
@@ -164,6 +172,7 @@ async fn list_workspaces(
 struct CmdRequest {
     cmd: String,
     working_dir: Option<String>,
+    env: Option<HashMap<String, String>>,
 }
 
 #[endpoint {
@@ -184,6 +193,7 @@ async fn cmd(
             &path.into_inner().id,
             &body.cmd,
             body.working_dir.as_deref(),
+            body.env.unwrap_or_default(),
         )
         .await
         .map_err(|e| {
@@ -211,6 +221,7 @@ async fn cmd_with_output(
             &path.into_inner().id,
             &body.cmd,
             body.working_dir.as_deref(),
+            body.env.unwrap_or_default(),
         )
         .await
         .map_err(|e| {

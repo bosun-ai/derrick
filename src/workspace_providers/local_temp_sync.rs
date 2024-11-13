@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use anyhow::Result;
 use async_trait::async_trait;
 
@@ -18,6 +20,7 @@ impl WorkspaceProvider for LocalTempSyncProvider {
     async fn provision(
         &mut self,
         context: &WorkspaceContext,
+        env: HashMap<String, String>,
     ) -> Result<Box<dyn WorkspaceController>> {
         let controller = Box::new(LocalTempSyncController::initialize(&context.name).await);
         controller.init().await?;
@@ -26,6 +29,11 @@ impl WorkspaceProvider for LocalTempSyncProvider {
                 .provision_repositories(vec![repository.clone()])
                 .await?;
         }
+
+        controller
+            .cmd_with_output(context.setup_script.as_str(), Some("/"), env)
+            .await?;
+
         Ok(controller)
     }
 }

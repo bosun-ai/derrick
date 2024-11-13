@@ -32,8 +32,8 @@ impl Server {
     // POST /workspaces/:workspace_id/write_file        writes a file in the workspace
     // POST /workspaces/:workspace_id/read_file         reads a file in the workspace
 
-    pub async fn create_workspace(&mut self) -> Result<String> {
-        let controller = self.provider.provision(&self.context).await?;
+    pub async fn create_workspace(&mut self, env: HashMap<String, String>) -> Result<String> {
+        let controller = self.provider.provision(&self.context, env).await?;
         let id: String = uuid::Uuid::new_v4().to_string();
         controller.init().await?;
         self.workspaces.insert(id.clone(), controller);
@@ -56,9 +56,15 @@ impl Server {
         Ok(self.workspaces.keys().cloned().collect())
     }
 
-    pub async fn cmd(&self, id: &str, cmd: &str, working_dir: Option<&str>) -> Result<()> {
+    pub async fn cmd(
+        &self,
+        id: &str,
+        cmd: &str,
+        working_dir: Option<&str>,
+        env: HashMap<String, String>,
+    ) -> Result<()> {
         match self.workspaces.get(id) {
-            Some(controller) => controller.cmd(cmd, working_dir).await,
+            Some(controller) => controller.cmd(cmd, working_dir, env).await,
             None => Err(anyhow::anyhow!("Workspace not found: {}", id)),
         }
     }
@@ -68,9 +74,10 @@ impl Server {
         id: &str,
         cmd: &str,
         working_dir: Option<&str>,
+        env: HashMap<String, String>,
     ) -> Result<String> {
         match self.workspaces.get(id) {
-            Some(controller) => controller.cmd_with_output(cmd, working_dir).await,
+            Some(controller) => controller.cmd_with_output(cmd, working_dir, env).await,
             None => Err(anyhow::anyhow!("Workspace not found: {}", id)),
         }
     }
@@ -105,9 +112,10 @@ impl Server {
         id: &str,
         cmd: &str,
         working_dir: Option<&str>,
+        env: HashMap<String, String>,
     ) -> Result<()> {
         match self.workspaces.get(id) {
-            Some(controller) => controller.cmd(cmd, working_dir).await,
+            Some(controller) => controller.cmd(cmd, working_dir, env).await,
             None => Err(anyhow::anyhow!("Workspace not found: {}", id)),
         }
     }
@@ -117,9 +125,10 @@ impl Server {
         id: &str,
         cmd: &str,
         working_dir: Option<&str>,
+        env: HashMap<String, String>,
     ) -> Result<String> {
         match self.workspaces.get(id) {
-            Some(controller) => controller.cmd_with_output(cmd, working_dir).await,
+            Some(controller) => controller.cmd_with_output(cmd, working_dir, env).await,
             None => Err(anyhow::anyhow!("Workspace not found: {}", id)),
         }
     }

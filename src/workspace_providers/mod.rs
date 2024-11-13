@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use async_trait::async_trait;
 
 mod local_temp_sync;
@@ -30,6 +32,7 @@ pub trait WorkspaceProvider: Send + Sync {
     async fn provision(
         &mut self,
         context: &WorkspaceContext,
+        env: HashMap<String, String>,
     ) -> Result<Box<dyn WorkspaceController>>;
 }
 
