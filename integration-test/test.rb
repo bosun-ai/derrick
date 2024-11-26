@@ -83,6 +83,18 @@ def run_tests(provisioner_mode:)
     puts "Test that we can set environment variables"
     response = request(:post, "/workspaces/#{id}/cmd_with_output", { 'cmd' => 'echo $HELLO', 'env' => { 'HELLO' => 'WORLD' } })
     raise "Expected output, got #{response.inspect}" unless response.include?("WORLD")
+
+    script_with_heredoc = <<~SCRIPT
+      cat <<-"EOF" > /tmp/hello.txt
+      hello
+      world
+      EOF
+      cat /tmp/hello.txt
+    SCRIPT
+
+    puts "Test that we can use HEREDOCs"
+    response = request(:post, "/workspaces/#{id}/cmd_with_output", { 'cmd' => script_with_heredoc })
+    raise "Expected output, got #{response.inspect}" unless response.include?("hello\nworld\n")
   end
 end
 

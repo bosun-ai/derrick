@@ -93,6 +93,19 @@ impl DockerController {
     }
 }
 
+async fn stop_container(docker: &Docker, container_id: &str) -> Result<()> {
+    docker
+        .remove_container(
+            container_id,
+            Some(RemoveContainerOptions {
+                force: true,
+                ..Default::default()
+            }),
+        )
+        .await?;
+    Ok(())
+}
+
 #[async_trait]
 impl WorkspaceController for DockerController {
     async fn init(&self) -> Result<()> {
@@ -101,16 +114,7 @@ impl WorkspaceController for DockerController {
     }
 
     async fn stop(&self) -> Result<()> {
-        self.docker
-            .remove_container(
-                &self.container_id,
-                Some(RemoveContainerOptions {
-                    force: true,
-                    ..Default::default()
-                }),
-            )
-            .await?;
-        Ok(())
+        stop_container(&self.docker, &self.container_id).await
     }
 
     async fn cmd_with_output(
@@ -243,10 +247,8 @@ impl WorkspaceController for DockerController {
 impl Drop for DockerController {
     fn drop(&mut self) {
         let handle = tokio::runtime::Handle::current();
-        let result = handle.block_on(async { self.stop().await });
-
-        if let Err(e) = result {
-            tracing::error!(error = %e, "Could not remove container");
-        }
+        let docker = self.docker.clone();
+        let container_id = self.container_id.clone();
+        handle.spawn(async move { stop_container(&docker, &container_id).await });
     }
 }
