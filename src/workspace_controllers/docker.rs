@@ -16,7 +16,7 @@ pub static BASE_IMAGE: &str = "bosunai/build-baseimage";
 #[derive(Debug)]
 pub struct DockerController {
     docker: Docker,
-    container_id: String,
+    pub container_id: String,
 }
 
 impl DockerController {
