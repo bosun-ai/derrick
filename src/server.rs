@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::time::Duration;
 
 use crate::{WorkspaceContext, WorkspaceController, WorkspaceProvider};
 use anyhow::Result;
@@ -62,9 +63,10 @@ impl Server {
         cmd: &str,
         working_dir: Option<&str>,
         env: HashMap<String, String>,
+        timeout: Option<Duration>,
     ) -> Result<()> {
         match self.workspaces.get(id) {
-            Some(controller) => controller.cmd(cmd, working_dir, env).await,
+            Some(controller) => controller.cmd(cmd, working_dir, env, timeout).await,
             None => Err(anyhow::anyhow!("Workspace not found: {}", id)),
         }
     }
@@ -75,9 +77,14 @@ impl Server {
         cmd: &str,
         working_dir: Option<&str>,
         env: HashMap<String, String>,
+        timeout: Option<Duration>,
     ) -> Result<String> {
         match self.workspaces.get(id) {
-            Some(controller) => controller.cmd_with_output(cmd, working_dir, env).await,
+            Some(controller) => {
+                controller
+                    .cmd_with_output(cmd, working_dir, env, timeout)
+                    .await
+            }
             None => Err(anyhow::anyhow!("Workspace not found: {}", id)),
         }
     }
@@ -113,9 +120,10 @@ impl Server {
         cmd: &str,
         working_dir: Option<&str>,
         env: HashMap<String, String>,
+        timeout: Option<Duration>,
     ) -> Result<()> {
         match self.workspaces.get(id) {
-            Some(controller) => controller.cmd(cmd, working_dir, env).await,
+            Some(controller) => controller.cmd(cmd, working_dir, env, timeout).await,
             None => Err(anyhow::anyhow!("Workspace not found: {}", id)),
         }
     }
@@ -126,9 +134,14 @@ impl Server {
         cmd: &str,
         working_dir: Option<&str>,
         env: HashMap<String, String>,
+        timeout: Option<Duration>,
     ) -> Result<String> {
         match self.workspaces.get(id) {
-            Some(controller) => controller.cmd_with_output(cmd, working_dir, env).await,
+            Some(controller) => {
+                controller
+                    .cmd_with_output(cmd, working_dir, env, timeout)
+                    .await
+            }
             None => Err(anyhow::anyhow!("Workspace not found: {}", id)),
         }
     }

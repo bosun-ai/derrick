@@ -3,6 +3,7 @@ use anyhow::{Context, Result};
 use async_trait::async_trait;
 use regex;
 use std::process::Command;
+use std::time::Duration;
 use std::{collections::HashMap, path::PathBuf};
 use tokio::sync::RwLock;
 use tracing::{debug, info, warn};
@@ -118,6 +119,7 @@ impl WorkspaceController for LocalTempSyncController {
         cmd: &str,
         working_dir: Option<&str>,
         env: HashMap<String, String>,
+        _timeout: Option<Duration>,
     ) -> Result<()> {
         let mut envs = self.whitelisted_env.read().await.clone();
         envs.extend(env);
@@ -132,6 +134,7 @@ impl WorkspaceController for LocalTempSyncController {
         cmd: &str,
         working_dir: Option<&str>,
         env: HashMap<String, String>,
+        _timeout: Option<Duration>,
     ) -> Result<String> {
         let mut envs = self.whitelisted_env.read().await.clone();
         envs.extend(env);
@@ -167,13 +170,14 @@ impl WorkspaceController for LocalTempSyncController {
             let path = path.join(repo.path.strip_prefix("/").unwrap_or(&repo.path));
             let path = path.to_string_lossy();
             info!("Making prefix {}", path);
-            self.cmd(&format!("mkdir -p {}", path), None, HashMap::new())
+            self.cmd(&format!("mkdir -p {}", path), None, HashMap::new(), None)
                 .await?;
             info!("Cloning repository {}", repo.url);
             self.cmd(
                 &format!("git clone {} {}", repo.url, path),
                 None,
                 HashMap::new(),
+                None,
             )
             .await?;
         }

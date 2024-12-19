@@ -6,6 +6,7 @@ use async_trait::async_trait;
 use regex;
 use serde::{de::DeserializeOwned, Serialize};
 use std::sync::OnceLock;
+use std::time::Duration;
 use std::{collections::HashMap, fmt::Debug};
 use tracing::{debug, warn};
 
@@ -85,6 +86,7 @@ impl WorkspaceController for RemoteNatsController {
         cmd: &str,
         working_dir: Option<&str>,
         env: HashMap<String, String>,
+        timeout: Option<Duration>,
     ) -> Result<()> {
         self.spawn_cmd(cmd, working_dir, env)
             .map(handle_command_result)?
@@ -97,6 +99,7 @@ impl WorkspaceController for RemoteNatsController {
         cmd: &str,
         working_dir: Option<&str>,
         env: HashMap<String, String>,
+        timeout: Option<Duration>,
     ) -> Result<String> {
         self.spawn_cmd(cmd, working_dir, env)
             .map(handle_command_result)?
@@ -115,7 +118,7 @@ impl WorkspaceController for RemoteNatsController {
     }
 
     #[tracing::instrument]
-    async fn read_file(&self, file: &str, working_dir: Option<&str>) -> Result<String> {
+    async fn read_file(&self, file: &str, _working_dir: Option<&str>) -> Result<String> {
         // std::fs::read_to_string(format!("{}/{}", &self.path(working_dir), file))
         //     .context("Could not read file")
         todo!()

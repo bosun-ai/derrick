@@ -128,7 +128,7 @@ impl DockerProvider {
                 DockerController::start(&self.docker, &base_image, &context.name).await?;
 
             controller
-                .cmd_with_output(context.setup_script.as_str(), Some("/"), env)
+                .cmd_with_output(context.setup_script.as_str(), Some("/"), env, None)
                 .await?;
 
             self.docker

@@ -9,6 +9,7 @@ use dropshot::{
 
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use std::time::Duration;
 use tokio::sync::Mutex;
 
 use crate::server::Server;
@@ -173,6 +174,7 @@ struct CmdRequest {
     cmd: String,
     working_dir: Option<String>,
     env: Option<HashMap<String, String>>,
+    timeout: Option<u64>,
 }
 
 #[endpoint {
@@ -194,6 +196,7 @@ async fn cmd(
             &body.cmd,
             body.working_dir.as_deref(),
             body.env.unwrap_or_default(),
+            body.timeout.map(|t| Duration::from_secs(t)),
         )
         .await
         .map_err(|e| {
@@ -222,6 +225,7 @@ async fn cmd_with_output(
             &body.cmd,
             body.working_dir.as_deref(),
             body.env.unwrap_or_default(),
+            body.timeout.map(|t| Duration::from_secs(t)),
         )
         .await
         .map_err(|e| {

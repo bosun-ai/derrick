@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::time::Duration;
 
 use anyhow::Result;
 use async_trait::async_trait;
@@ -25,6 +26,7 @@ pub trait WorkspaceController: Send + Sync + std::fmt::Debug {
         cmd: &str,
         working_dir: Option<&str>,
         env: HashMap<String, String>,
+        timeout: Option<Duration>,
     ) -> Result<()>;
     // TODO instead of returning a string, return a stream of output (using tokio::sync)
     async fn cmd_with_output(
@@ -32,6 +34,7 @@ pub trait WorkspaceController: Send + Sync + std::fmt::Debug {
         cmd: &str,
         working_dir: Option<&str>,
         env: HashMap<String, String>,
+        timeout: Option<Duration>,
     ) -> Result<String>;
     async fn write_file(&self, path: &str, content: &str, working_dir: Option<&str>) -> Result<()>;
     async fn read_file(&self, path: &str, working_dir: Option<&str>) -> Result<String>;
