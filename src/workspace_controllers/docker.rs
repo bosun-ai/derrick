@@ -138,7 +138,7 @@ impl WorkspaceController for DockerController {
             cmd_vec.push("timeout");
             cmd_vec.push(timeout_str.as_str());
         }
-        cmd_vec.push("sh");
+        cmd_vec.push("bash");
         cmd_vec.push("-c");
         cmd_vec.push(cmd);
 
