@@ -4,6 +4,12 @@ use std::time::Duration;
 use anyhow::Result;
 use async_trait::async_trait;
 
+#[derive(Debug)]
+pub struct CommandOutput {
+    pub output: String,
+    pub exit_code: i32,
+}
+
 mod local_temp_sync;
 pub use local_temp_sync::LocalTempSyncController;
 
@@ -13,6 +19,8 @@ mod testing;
 pub mod docker;
 // mod remote_nats;
 pub use docker::DockerController;
+
+
 
 #[async_trait]
 pub trait WorkspaceController: Send + Sync + std::fmt::Debug {
@@ -29,14 +37,13 @@ pub trait WorkspaceController: Send + Sync + std::fmt::Debug {
         env: HashMap<String, String>,
         timeout: Option<Duration>,
     ) -> Result<()>;
-    // TODO instead of returning a string, return a stream of output (using tokio::sync)
     async fn cmd_with_output(
         &self,
         cmd: &str,
         working_dir: Option<&str>,
         env: HashMap<String, String>,
         timeout: Option<Duration>,
-    ) -> Result<String>;
+    ) -> Result<CommandOutput>;
     async fn write_file(&self, path: &str, content: &str, working_dir: Option<&str>) -> Result<()>;
     async fn read_file(&self, path: &str, working_dir: Option<&str>) -> Result<String>;
 }

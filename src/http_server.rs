@@ -13,6 +13,7 @@ use std::time::Duration;
 use tokio::sync::Mutex;
 
 use crate::server::Server;
+use crate::workspace_controllers::CommandOutput;
 
 pub async fn serve_http(server: Server) -> Result<()> {
     let log = ConfigLogging::StderrTerminal {
@@ -206,6 +207,21 @@ async fn cmd(
     Ok(HttpResponseOk(()))
 }
 
+#[derive(Serialize, JsonSchema)]
+struct CommandOutputResponse {
+    output: String,
+    exit_code: i32,
+}
+
+impl From<CommandOutput> for CommandOutputResponse {
+    fn from(output: CommandOutput) -> Self {
+        Self {
+            output: output.output,
+            exit_code: output.exit_code,
+        }
+    }
+}
+
 #[endpoint {
     method = POST,
     path = "/workspaces/{id}/cmd_with_output",
@@ -214,7 +230,7 @@ async fn cmd_with_output(
     rqctx: RequestContext<Mutex<Server>>,
     path: Path<SinglePathIdParam>,
     body: TypedBody<CmdRequest>,
-) -> Result<HttpResponseOk<String>, HttpError> {
+) -> Result<HttpResponseOk<CommandOutputResponse>, HttpError> {
     let body = body.into_inner();
     let output = rqctx
         .context()
@@ -232,7 +248,7 @@ async fn cmd_with_output(
             tracing::error!("Failed to run command with output: {:?}", e);
             HttpError::for_internal_error("Failed to run command with output".to_string())
         })?;
-    Ok(HttpResponseOk(output))
+    Ok(HttpResponseOk(output.into()))
 }
 
 #[derive(Deserialize, JsonSchema)]

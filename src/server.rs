@@ -2,6 +2,7 @@ use std::collections::HashMap;
 use std::time::Duration;
 
 use crate::{WorkspaceContext, WorkspaceController, WorkspaceProvider};
+use crate::workspace_controllers::CommandOutput;
 use anyhow::Result;
 
 pub struct Server {
@@ -78,7 +79,7 @@ impl Server {
         working_dir: Option<&str>,
         env: HashMap<String, String>,
         timeout: Option<Duration>,
-    ) -> Result<String> {
+    ) -> Result<CommandOutput> {
         match self.workspaces.get(id) {
             Some(controller) => {
                 controller
@@ -135,7 +136,7 @@ impl Server {
         working_dir: Option<&str>,
         env: HashMap<String, String>,
         timeout: Option<Duration>,
-    ) -> Result<String> {
+    ) -> Result<CommandOutput> {
         match self.workspaces.get(id) {
             Some(controller) => {
                 controller

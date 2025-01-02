@@ -11,6 +11,7 @@ pub trait Workspace {
 
 // CommandOutput is just an alias for String
 pub type CommandOutput = String;
+
 // Implementors decide what they support, i.e. local might never want to support unsaferaw
 #[non_exhaustive]
 pub enum Command {

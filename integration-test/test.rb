@@ -62,27 +62,27 @@ def run_tests(provisioner_mode:)
 
     puts "Test that we can run a command"
     response = request(:post, "/workspaces/#{id}/cmd_with_output", { 'cmd' => 'echo hello' })
-    raise "Expected output, got #{response.inspect}" unless response == "hello\n"
+    raise "Expected output, got #{response.inspect}" unless response["output"] == "hello\n" && response["exit_code"] == 0
 
     puts "Test that we can list files in the workspace"
     response = request(:post, "/workspaces/#{id}/cmd_with_output", { 'cmd' => 'ls ./code/swiftide-ask' })
-    raise "Expected output, got #{response.inspect}" unless response.include?("Cargo.toml")
+    raise "Expected output, got #{response.inspect}" unless response["output"].include?("Cargo.toml") && response["exit_code"] == 0
 
     puts "Test that we can run a command in the workspace"
     response = request(:post, "/workspaces/#{id}/cmd_with_output", { 'cmd' => 'cd ./code/swiftide-ask && ls' })
-    raise "Expected output, got #{response.inspect}" unless response.include?("Cargo.toml")
+    raise "Expected output, got #{response.inspect}" unless response["output"].include?("Cargo.toml") && response["exit_code"] == 0
 
     puts "Test that we can run multiline commands"
     response = request(:post, "/workspaces/#{id}/cmd_with_output", { 'cmd' => "echo hello\necho world" })
-    raise "Expected output, got #{response.inspect}" unless response.include?("hello\nworld\n")
+    raise "Expected output, got #{response.inspect}" unless response["output"].include?("hello\nworld\n") && response["exit_code"] == 0
 
     puts "Test that the setup script ran successfully"
     response = request(:post, "/workspaces/#{id}/cmd_with_output", { 'cmd' => 'cat /tmp/hello.txt' })
-    raise "Expected output, got #{response.inspect}" unless response.include?("Hello World")
+    raise "Expected output, got #{response.inspect}" unless response["output"].include?("Hello World") && response["exit_code"] == 0
 
     puts "Test that we can set environment variables"
     response = request(:post, "/workspaces/#{id}/cmd_with_output", { 'cmd' => 'echo $HELLO', 'env' => { 'HELLO' => 'WORLD' } })
-    raise "Expected output, got #{response.inspect}" unless response.include?("WORLD")
+    raise "Expected output, got #{response.inspect}" unless response["output"].include?("WORLD") && response["exit_code"] == 0
 
     script_with_heredoc = <<~SCRIPT
       cat <<-"EOF" > /tmp/hello.txt
@@ -94,7 +94,11 @@ def run_tests(provisioner_mode:)
 
     puts "Test that we can use HEREDOCs"
     response = request(:post, "/workspaces/#{id}/cmd_with_output", { 'cmd' => script_with_heredoc })
-    raise "Expected output, got #{response.inspect}" unless response.include?("hello\nworld\n")
+    raise "Expected output, got #{response.inspect}" unless response["output"].include?("hello\nworld\n") && response["exit_code"] == 0
+
+    puts "Test that failed commands return exit code 1"
+    response = request(:post, "/workspaces/#{id}/cmd_with_output", { 'cmd' => 'ls /nonexistent/directory' })
+    raise "Expected exit code 1, got #{response.inspect}" unless response["exit_code"] == 2 && response["output"].include?("No such file or directory")
   end
 end
 

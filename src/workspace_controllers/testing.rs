@@ -1,4 +1,4 @@
-use crate::workspace_controllers::WorkspaceController;
+use crate::workspace_controllers::{WorkspaceController, CommandOutput};
 use anyhow::{Context, Result};
 use async_trait::async_trait;
 use rand::Rng;
@@ -116,10 +116,9 @@ impl WorkspaceController for TestingController {
         _working_dir: Option<&str>,
         _env: HashMap<String, String>,
         _timeout: Option<Duration>,
-    ) -> Result<String> {
+    ) -> Result<CommandOutput> {
         self.spawn_cmd(cmd, _working_dir, _env)
             .map(handle_command_result)?
-            .context("Could not run command")
     }
 
     async fn write_file(
@@ -132,7 +131,9 @@ impl WorkspaceController for TestingController {
     }
 
     async fn read_file(&self, file: &str, _working_dir: Option<&str>) -> Result<String> {
-        std::fs::read_to_string(format!("{}/{}", &self.path, file)).context("Could not read file")
+        self.cmd_with_output(&format!("cat {}", file), None, HashMap::new(), None)
+            .await
+            .map(|output| output.output)
     }
 
     #[tracing::instrument(skip_all)]
@@ -145,12 +146,15 @@ impl WorkspaceController for TestingController {
 }
 
 #[tracing::instrument]
-fn handle_command_result(result: std::process::Output) -> Result<String> {
+fn handle_command_result(result: std::process::Output) -> Result<CommandOutput> {
     let stdout = String::from_utf8_lossy(&result.stdout).to_string();
     let stderr = String::from_utf8_lossy(&result.stderr).to_string();
     if result.status.success() {
         debug!(stdout = &stdout, stderr = &stderr, "Command succeeded");
-        Ok(stdout)
+        Ok(CommandOutput {
+            output: stdout,
+            exit_code: result.status.code().unwrap_or(0),
+        })
     } else {
         warn!(stdout = &stdout, stderr = &stderr, "Command failed");
         Err(anyhow::anyhow!(
@@ -172,8 +176,9 @@ mod tests {
             .cmd_with_output("pwd", None, HashMap::new(), None)
             .await;
         assert!(result.is_ok());
-        let stdout = result.unwrap();
-        assert!(stdout.contains("test"));
+        let output = result.unwrap();
+        assert!(output.output.contains("test"));
+        assert_eq!(output.exit_code, 0);
     }
 
     #[tokio::test]
@@ -241,7 +246,7 @@ mod tests {
             .cmd_with_output("cat test.txt", None, HashMap::new(), None)
             .await;
         assert!(result.is_ok());
-        assert_eq!(result.unwrap(), "Hello, world!");
+        assert_eq!(result.unwrap().output, "Hello, world!");
 
         adapter
             .write_file("test.txt", "Hello, back!", None)
@@ -251,6 +256,6 @@ mod tests {
             .cmd_with_output("cat test.txt", None, HashMap::new(), None)
             .await;
         assert!(result.is_ok());
-        assert_eq!(result.unwrap(), "Hello, back!");
+        assert_eq!(result.unwrap().output, "Hello, back!");
     }
 }

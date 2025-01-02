@@ -1,4 +1,5 @@
 use crate::workspace_controllers::WorkspaceController;
+use crate::workspace_controllers::CommandOutput;
 use anyhow::{Context, Result};
 use async_trait::async_trait;
 use regex;
@@ -9,6 +10,7 @@ use tokio::sync::RwLock;
 use tracing::{debug, info, warn};
 
 const ALLOWED_ENV: &[&str] = &["PATH", "CARGO_HOME", "RUST_HOME", "RUST_VERSION"];
+
 // Runs commands in a local temporary directory
 // Useful for debugging, testing and experimentation
 //
@@ -135,7 +137,7 @@ impl WorkspaceController for LocalTempSyncController {
         working_dir: Option<&str>,
         env: HashMap<String, String>,
         _timeout: Option<Duration>,
-    ) -> Result<String> {
+    ) -> Result<CommandOutput> {
         let mut envs = self.whitelisted_env.read().await.clone();
         envs.extend(env);
         self.spawn_cmd(cmd, working_dir, &envs)
@@ -186,12 +188,15 @@ impl WorkspaceController for LocalTempSyncController {
 }
 
 #[tracing::instrument(skip_all)]
-fn handle_command_result(result: std::process::Output) -> Result<String> {
+fn handle_command_result(result: std::process::Output) -> Result<CommandOutput> {
     let stdout = String::from_utf8_lossy(&result.stdout).to_string();
     let stderr = String::from_utf8_lossy(&result.stderr).to_string();
     if result.status.success() {
         debug!(stdout = &stdout, stderr = &stderr, "Command succeeded");
-        Ok(stdout)
+        Ok(CommandOutput {
+            output: stdout,
+            exit_code: result.status.code().unwrap_or(0),
+        })
     } else {
         warn!(stdout = &stdout, stderr = &stderr, "Command failed");
         Err(anyhow::anyhow!(stderr))
@@ -210,7 +215,7 @@ mod tests {
         let result = adapter.cmd_with_output("pwd", None, HashMap::new(), None).await;
         assert!(result.is_ok());
         let stdout = result.unwrap();
-        assert!(stdout.contains("tmp/test"));
+        assert!(stdout.output.contains("tmp/test"));
     }
 
     #[tokio::test]
@@ -303,7 +308,7 @@ mod tests {
             .cmd_with_output("cat write.txt", None, HashMap::new(), None)
             .await;
         assert!(result.is_ok());
-        assert_eq!(result.unwrap(), "Hello, world!");
+        assert_eq!(result.unwrap().output, "Hello, world!");
 
         adapter
             .write_file("write.txt", "Hello, back!", None)
@@ -313,7 +318,7 @@ mod tests {
             .cmd_with_output("cat write.txt", None, HashMap::new(), None)
             .await;
         assert!(result.is_ok());
-        assert_eq!(result.unwrap(), "Hello, back!");
+        assert_eq!(result.unwrap().output, "Hello, back!");
     }
 
     #[tokio::test]
@@ -367,10 +372,10 @@ mod tests {
 
         // In tests we only have path available, so just check that
         // We cannot reliably set env variables in test to to multithreading
-        assert!(env.contains("PATH"));
+        assert!(env.output.contains("PATH"));
 
         // And it should not contain any other env variables
-        env.lines().for_each(|line| {
+        env.output.lines().for_each(|line| {
             let key = line.split('=').next().unwrap();
             // Stupid vars always present in subprocesses
             if ["PWD", "SHLVL", "GIT_TERMINAL_PROMPT", "_"].contains(&key) {

@@ -9,7 +9,7 @@ use bollard::exec::{CreateExecOptions, StartExecResults};
 use futures_util::stream::StreamExt;
 use tracing::debug;
 
-use crate::WorkspaceController;
+use crate::workspace_controllers::{WorkspaceController, CommandOutput};
 use anyhow::Result;
 
 pub static BASE_IMAGE: &str = "bosunai/build-baseimage";
@@ -124,7 +124,7 @@ impl WorkspaceController for DockerController {
         _working_dir: Option<&str>,
         env: HashMap<String, String>,
         timeout: Option<Duration>,
-    ) -> Result<String> {
+    ) -> Result<CommandOutput> {
         let env_strings: Vec<String> = env
             .into_iter()
             .map(|(k, v)| format!("{}={}", k, v))
@@ -155,13 +155,12 @@ impl WorkspaceController for DockerController {
                     ..Default::default()
                 },
             )
-            .await?
-            .id;
+            .await?;
 
         let mut response = String::new();
 
         if let StartExecResults::Attached { mut output, .. } =
-            self.docker.start_exec(&exec, None).await?
+            self.docker.start_exec(&exec.id, None).await?
         {
             while let Some(Ok(msg)) = output.next().await {
                 response.push_str(&msg.to_string());
@@ -169,7 +168,16 @@ impl WorkspaceController for DockerController {
         } else {
             todo!();
         }
-        Ok(response)
+
+        // Get the exit code from the exec inspection
+        let exec_inspect = self.docker.inspect_exec(&exec.id).await?;
+        // TODO is this actually the way to get the exit code?
+        let exit_code= exec_inspect.exit_code.unwrap_or(0) as i32;
+
+        Ok(CommandOutput {
+            output: response,
+            exit_code,
+        })
     }
 
     async fn cmd(
@@ -179,8 +187,12 @@ impl WorkspaceController for DockerController {
         env: HashMap<String, String>,
         timeout: Option<Duration>,
     ) -> Result<()> {
-        self.cmd_with_output(cmd, working_dir, env, timeout).await?;
-        Ok(())
+        let result = self.cmd_with_output(cmd, working_dir, env, timeout).await?;
+        if result.exit_code == 0 {
+            Ok(())
+        } else {
+            Err(anyhow::anyhow!("Command failed with exit code {}: {}", result.exit_code, result.output))
+        }
     }
 
     async fn write_file(&self, path: &str, content: &str, working_dir: Option<&str>) -> Result<()> {
@@ -197,6 +209,7 @@ impl WorkspaceController for DockerController {
     async fn read_file(&self, path: &str, working_dir: Option<&str>) -> Result<String> {
         self.cmd_with_output(&format!("cat {}", path), working_dir, HashMap::new(), None)
             .await
+            .map(|output| output.output)
     }
 
     async fn provision_repositories(
@@ -214,8 +227,8 @@ impl WorkspaceController for DockerController {
                     None,
                 )
                 .await?;
-            let has_repository = repository_listing.contains("config");
-            debug!("Has repository: {}, {}", has_repository, repository_listing);
+            let has_repository = repository_listing.output.contains("config");
+            debug!("Has repository: {}, {:?}", has_repository, repository_listing);
             if !has_repository {
                 debug!("Cloning repository: {}", repository.url);
                 self.cmd(

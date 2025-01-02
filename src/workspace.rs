@@ -1,6 +1,6 @@
 use crate::repository::Repository;
 use crate::traits::{self, CodeCommands, Command, FileCommands, GitCommands, GithubCommands};
-use crate::workspace_controllers::WorkspaceController;
+use crate::workspace_controllers::{CommandOutput, WorkspaceController};
 use anyhow::Result;
 use async_trait::async_trait;
 use octocrab::models::pulls::PullRequest;
@@ -87,7 +87,7 @@ impl Workspace {
         cmd: &str,
         env: HashMap<String, String>,
         timeout: Option<Duration>,
-    ) -> Result<String> {
+    ) -> Result<CommandOutput> {
         let inner = self.0.lock().await;
 
         inner.adapter.cmd_with_output(cmd, None, env, timeout).await
@@ -316,6 +316,7 @@ impl Workspace {
         let main_branch = self
             .cmd_with_output(MAIN_BRANCH_CMD, HashMap::new(), None)
             .await?
+            .output
             .trim()
             .to_owned();
 
@@ -357,6 +358,7 @@ impl traits::Workspace for Workspace {
     async fn exec_cmd(&self, cmd: &traits::Command) -> Result<traits::CommandOutput> {
         self.cmd_with_output(&command_to_shell_string(cmd), HashMap::new(), None)
             .await
+            .map(|output| output.output)
     }
 
     async fn init(&self) -> Result<()> {
