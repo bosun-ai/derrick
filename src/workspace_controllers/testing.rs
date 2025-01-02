@@ -18,6 +18,23 @@ pub struct TestingController {
     path: String,
 }
 
+fn init_path(name: &str) -> Result<String> {
+    // Use the tmp directory with a random directory name
+    let mut temp_dir = std::env::temp_dir();
+    let mut rng = rand::thread_rng();
+    let path = format!("{}-{}", name, rng.gen::<u64>());
+    temp_dir.push(path);
+
+    if !temp_dir.exists() {
+        std::fs::create_dir_all(&temp_dir).context("Could not create local temp directory")?;
+    }
+    Ok(temp_dir
+        .canonicalize()?
+        .to_str()
+        .context("Could not convert to string")?
+        .to_string())
+}
+
 impl TestingController {
     #[tracing::instrument]
     pub fn new(name: &str) -> Self {
@@ -55,23 +72,6 @@ impl TestingController {
             .output()
             .context("Could not run command")
     }
-}
-
-fn init_path(name: &str) -> Result<String> {
-    // Use the tmp directory with a random directory name
-    let mut temp_dir = std::env::temp_dir();
-    let mut rng = rand::thread_rng();
-    let path = format!("{}-{}", name, rng.gen::<u64>());
-    temp_dir.push(path);
-
-    if !temp_dir.exists() {
-        std::fs::create_dir_all(&temp_dir).context("Could not create local temp directory")?;
-    }
-    Ok(temp_dir
-        .canonicalize()?
-        .to_str()
-        .context("Could not convert to string")?
-        .to_string())
 }
 
 // Clean up the temporary directory when the adapter is dropped
@@ -181,7 +181,7 @@ mod tests {
         let adapter = TestingController::new("test");
         adapter.init().await.unwrap();
         let output = adapter
-            .spawn_cmd("pwd", None, HashMap::new(), None)
+            .spawn_cmd("pwd", None, HashMap::new())
             .unwrap();
         let stdout = String::from_utf8_lossy(&output.stdout).to_string();
         assert!(stdout.contains("test"));

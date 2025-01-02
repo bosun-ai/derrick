@@ -7,10 +7,11 @@ use async_trait::async_trait;
 mod local_temp_sync;
 pub use local_temp_sync::LocalTempSyncController;
 
+#[cfg(test)]
 mod testing;
 
 pub mod docker;
-mod remote_nats;
+// mod remote_nats;
 pub use docker::DockerController;
 
 #[async_trait]

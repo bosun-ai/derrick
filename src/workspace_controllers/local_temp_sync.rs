@@ -207,7 +207,7 @@ mod tests {
     async fn test_cmd_with_output() {
         let adapter = LocalTempSyncController::initialize("test").await;
         adapter.init().await.unwrap();
-        let result = adapter.cmd_with_output("pwd", None, HashMap::new()).await;
+        let result = adapter.cmd_with_output("pwd", None, HashMap::new(), None).await;
         assert!(result.is_ok());
         let stdout = result.unwrap();
         assert!(stdout.contains("tmp/test"));
@@ -262,7 +262,7 @@ mod tests {
     async fn test_cmd_valid() {
         let adapter = LocalTempSyncController::initialize("test").await;
         adapter.init().await.unwrap();
-        let result = adapter.cmd("ls", None, HashMap::new()).await;
+        let result = adapter.cmd("ls", None, HashMap::new(), None).await;
         println!("{:#?}", result);
         assert!(result.is_ok());
     }
@@ -271,7 +271,7 @@ mod tests {
     async fn test_cmd_invalid() {
         let adapter = LocalTempSyncController::initialize("test").await;
         adapter.init().await.unwrap();
-        let result = adapter.cmd("invalid command", None, HashMap::new()).await;
+        let result = adapter.cmd("invalid command", None, HashMap::new(), None).await;
         assert!(result.is_err());
     }
 
@@ -280,12 +280,12 @@ mod tests {
         let adapter = LocalTempSyncController::initialize("test").await;
         adapter.init().await.unwrap();
         adapter
-            .cmd("echo 'hello' > test.txt", None, HashMap::new())
+            .cmd("echo 'hello' > test.txt", None, HashMap::new(), None)
             .await
             .unwrap();
         // check if file was created
         let result = adapter
-            .cmd("cat test.txt | grep 'hello'", None, HashMap::new())
+            .cmd("cat test.txt | grep 'hello'", None, HashMap::new(), None)
             .await;
         dbg!(&result);
         assert!(result.is_ok());
@@ -300,7 +300,7 @@ mod tests {
             .await
             .expect("Could not write file");
         let result = adapter
-            .cmd_with_output("cat write.txt", None, HashMap::new())
+            .cmd_with_output("cat write.txt", None, HashMap::new(), None)
             .await;
         assert!(result.is_ok());
         assert_eq!(result.unwrap(), "Hello, world!");
@@ -310,7 +310,7 @@ mod tests {
             .await
             .unwrap();
         let result = adapter
-            .cmd_with_output("cat write.txt", None, HashMap::new())
+            .cmd_with_output("cat write.txt", None, HashMap::new(), None)
             .await;
         assert!(result.is_ok());
         assert_eq!(result.unwrap(), "Hello, back!");
@@ -361,7 +361,7 @@ mod tests {
         adapter.init().await.unwrap();
 
         let env = adapter
-            .cmd_with_output("printenv", None, HashMap::new())
+            .cmd_with_output("printenv", None, HashMap::new(), None)
             .await
             .unwrap();
 
