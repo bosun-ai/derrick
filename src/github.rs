@@ -83,13 +83,13 @@ impl GithubSession {
     #[tracing::instrument(skip_all)]
     async fn with_installation_for_repo(&self, repo_url: &str) -> Result<Octocrab> {
         if let Some(installation_id) = *self.installation_id.read().await {
-            return Ok(self.octocrab.installation(installation_id));
+            return self.octocrab.installation(installation_id).map_err(anyhow::Error::from);
         }
 
         let installation = self.get_installation(repo_url).await?;
         *self.installation_id.write().await = Some(installation.id);
 
-        Ok(self.octocrab.installation(installation.id))
+        self.octocrab.installation(installation.id).map_err(anyhow::Error::from)
     }
 
     #[tracing::instrument(skip_all)]

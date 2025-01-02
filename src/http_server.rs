@@ -37,7 +37,7 @@ pub async fn serve_http(server: Server) -> Result<()> {
     let server = HttpServerStarter::new(
         &ConfigDropshot {
       bind_address: "127.0.0.1:50080".parse().unwrap(),
-      request_body_max_bytes: /* 100MB */ 100 * 1024 * 1024,
+      default_request_body_max_bytes: /* 100MB */ 100 * 1024 * 1024,
       default_handler_task_mode: HandlerTaskMode::Detached,
       log_headers: Default::default(),
   },
