@@ -9,7 +9,7 @@ use bollard::exec::{CreateExecOptions, StartExecResults};
 use futures_util::stream::StreamExt;
 use tracing::debug;
 
-use crate::workspace_controllers::{WorkspaceController, CommandOutput};
+use crate::workspace_controllers::{CommandOutput, WorkspaceController};
 use anyhow::Result;
 
 pub static BASE_IMAGE: &str = "bosunai/build-baseimage";
@@ -169,10 +169,8 @@ impl WorkspaceController for DockerController {
             todo!();
         }
 
-        // Get the exit code from the exec inspection
         let exec_inspect = self.docker.inspect_exec(&exec.id).await?;
-        // TODO is this actually the way to get the exit code?
-        let exit_code= exec_inspect.exit_code.unwrap_or(0) as i32;
+        let exit_code = exec_inspect.exit_code.unwrap_or(0) as i32;
 
         Ok(CommandOutput {
             output: response,
@@ -191,7 +189,11 @@ impl WorkspaceController for DockerController {
         if result.exit_code == 0 {
             Ok(())
         } else {
-            Err(anyhow::anyhow!("Command failed with exit code {}: {}", result.exit_code, result.output))
+            Err(anyhow::anyhow!(
+                "Command failed with exit code {}: {}",
+                result.exit_code,
+                result.output
+            ))
         }
     }
 
@@ -228,7 +230,10 @@ impl WorkspaceController for DockerController {
                 )
                 .await?;
             let has_repository = repository_listing.output.contains("config");
-            debug!("Has repository: {}, {:?}", has_repository, repository_listing);
+            debug!(
+                "Has repository: {}, {:?}",
+                has_repository, repository_listing
+            );
             if !has_repository {
                 debug!("Cloning repository: {}", repository.url);
                 self.cmd(
