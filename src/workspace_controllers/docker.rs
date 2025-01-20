@@ -233,6 +233,9 @@ impl WorkspaceController for DockerController {
         let mut header = TarHeader::new_gnu();
         header.set_path(file_name)?;
         header.set_size(content.len() as u64);
+        header.set_mode(0o644);
+        header.set_cksum();
+
         let mut archive = TarBuilder::new(Vec::new());
         archive.append(&mut header, content)?;
         let tar_bytes = archive.into_inner()?;

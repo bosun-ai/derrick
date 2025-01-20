@@ -3,6 +3,7 @@
 require 'json'
 require 'net/http'
 require 'socket'
+require 'base64'
 
 def request(method, path, body=nil)
   body_json = JSON.generate(body) if body
@@ -16,6 +17,10 @@ def request(method, path, body=nil)
 
   if response.code.to_i >= 400
     raise "Request failed with status #{response.code}: #{response.body}"
+  end
+
+  if response.header['Content-Type'] == 'application/octet-stream'
+    return response.body
   end
 
   JSON.parse(response.body)
@@ -99,6 +104,15 @@ def run_tests(provisioner_mode:)
     puts "Test that failed commands return exit code 1"
     response = request(:post, "/workspaces/#{id}/cmd_with_output", { 'cmd' => 'ls /nonexistent/directory' })
     raise "Expected exit code 1, got #{response.inspect}" unless response["exit_code"] == 2 && response["output"].include?("No such file or directory")
+
+    puts "Test that we can write a file"
+    content = "Hello, world!"
+    content_encoded = Base64.encode64(content)
+    response = request(:post, "/workspaces/#{id}/write_file", { 'path' => '/tmp/test.txt', 'content' => content_encoded })
+    raise "Expected no error, got #{response.inspect}" unless response["error"].nil?
+
+    response = request(:post, "/workspaces/#{id}/read_file", { 'path' => '/tmp/test.txt' })
+    raise "Expected output, got #{response.inspect}" unless response == content
   end
 end
 

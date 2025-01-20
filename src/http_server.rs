@@ -3,10 +3,13 @@ use std::collections::HashMap;
 use anyhow::Result;
 
 use dropshot::{
-    endpoint, ApiDescription, ConfigDropshot, ConfigLogging, ConfigLoggingLevel, HandlerTaskMode,
-    HttpError, HttpResponseOk, HttpServerStarter, Path, RequestContext, TypedBody,
+    endpoint, ApiDescription, ApiEndpointResponse, Body, ConfigDropshot, ConfigLogging,
+    ConfigLoggingLevel, HandlerTaskMode, HttpError, HttpResponse, HttpResponseOk,
+    HttpServerStarter, Path, RequestContext, TypedBody,
 };
 
+use base64::Engine;
+use http::{Response, StatusCode};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::time::Duration;
@@ -254,8 +257,13 @@ async fn cmd_with_output(
 #[derive(Deserialize, JsonSchema)]
 struct WriteFileRequest {
     path: String,
-    content: Vec<u8>,
     working_dir: Option<String>,
+    content: String, // Base64 encoded
+}
+
+#[derive(Serialize, JsonSchema)]
+struct WriteFileResponse {
+    success: bool,
 }
 
 #[endpoint {
@@ -266,8 +274,16 @@ async fn write_file(
     rqctx: RequestContext<Mutex<Server>>,
     path: Path<SinglePathIdParam>,
     body: TypedBody<WriteFileRequest>,
-) -> Result<HttpResponseOk<()>, HttpError> {
+) -> Result<HttpResponseOk<WriteFileResponse>, HttpError> {
     let body = body.into_inner();
+    let content = base64::engine::general_purpose::STANDARD
+        .decode(&body.content.trim_end())
+        .map_err(|e| {
+            tracing::debug!("Failed to decode base64 content: {:?}", body.content);
+            tracing::error!("Failed to decode base64 content: {:?}", e);
+            HttpError::for_internal_error("Failed to decode base64 content".to_string())
+        })?;
+
     rqctx
         .context()
         .lock()
@@ -275,7 +291,7 @@ async fn write_file(
         .write_file(
             &path.into_inner().id,
             &body.path,
-            &body.content,
+            content.as_slice(),
             body.working_dir.as_deref(),
         )
         .await
@@ -283,7 +299,7 @@ async fn write_file(
             tracing::error!("Failed to write file: {:?}", e);
             HttpError::for_internal_error("Failed to write file".to_string())
         })?;
-    Ok(HttpResponseOk(()))
+    Ok(HttpResponseOk(WriteFileResponse { success: true }))
 }
 
 #[derive(Deserialize, JsonSchema)]
@@ -292,15 +308,41 @@ struct ReadFileRequest {
     working_dir: Option<String>,
 }
 
+#[derive()]
+struct ReadFileResponse {
+    content: Vec<u8>,
+}
+
+impl HttpResponse for ReadFileResponse {
+    fn to_result(self) -> Result<Response<Body>, HttpError> {
+        Response::builder()
+            .header("Content-Type", "application/octet-stream")
+            .body(Body::from(self.content))
+            .map_err(|e| HttpError::for_internal_error(e.to_string()))
+    }
+    fn response_metadata() -> ApiEndpointResponse {
+        ApiEndpointResponse {
+            schema: None,
+            headers: vec![],
+            success: Some(StatusCode::OK),
+            description: None,
+        }
+    }
+    fn status_code(&self) -> StatusCode {
+        StatusCode::OK
+    }
+}
+
+// read_file returns the content of the file not as json but as a binary blob
 #[endpoint {
     method = POST,
-    path = "/workspaces/{id}/read_file",
+    path = "/workspaces/{id}/read_file"
 }]
 async fn read_file(
     rqctx: RequestContext<Mutex<Server>>,
     path: Path<SinglePathIdParam>,
     body: TypedBody<ReadFileRequest>,
-) -> Result<HttpResponseOk<Vec<u8>>, HttpError> {
+) -> Result<ReadFileResponse, HttpError> {
     let body = body.into_inner();
     let content = rqctx
         .context()
@@ -316,5 +358,5 @@ async fn read_file(
             tracing::error!("Failed to read file: {:?}", e);
             HttpError::for_internal_error("Failed to read file".to_string())
         })?;
-    Ok(HttpResponseOk(content))
+    Ok(ReadFileResponse { content })
 }
