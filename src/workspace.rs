@@ -98,14 +98,14 @@ impl Workspace {
         name = "workspace.write_file",
         err
     )]
-    pub async fn write_file(&self, path: &str, content: &str) -> Result<()> {
+    pub async fn write_file(&self, path: &str, content: &[u8]) -> Result<()> {
         let inner = self.0.lock().await;
 
         inner.adapter.write_file(path, content, None).await
     }
 
     #[tracing::instrument(skip(self), fields(bosun.tracing=true), name = "workspace.read_file", err)]
-    pub async fn read_file(&self, path: &str) -> Result<String> {
+    pub async fn read_file(&self, path: &str) -> Result<Vec<u8>> {
         let inner = self.0.lock().await;
 
         inner.adapter.read_file(path, None).await

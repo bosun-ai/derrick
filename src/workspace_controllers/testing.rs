@@ -1,4 +1,4 @@
-use crate::workspace_controllers::{WorkspaceController, CommandOutput};
+use crate::workspace_controllers::{CommandOutput, WorkspaceController};
 use anyhow::{Context, Result};
 use async_trait::async_trait;
 use rand::Rng;
@@ -124,16 +124,16 @@ impl WorkspaceController for TestingController {
     async fn write_file(
         &self,
         file: &str,
-        content: &str,
+        content: &[u8],
         _working_dir: Option<&str>,
     ) -> Result<()> {
         std::fs::write(format!("{}/{}", &self.path, file), content).context("Could not write file")
     }
 
-    async fn read_file(&self, file: &str, _working_dir: Option<&str>) -> Result<String> {
+    async fn read_file(&self, file: &str, _working_dir: Option<&str>) -> Result<Vec<u8>> {
         self.cmd_with_output(&format!("cat {}", file), None, HashMap::new(), None)
             .await
-            .map(|output| output.output)
+            .map(|output| output.output.as_bytes().to_vec())
     }
 
     #[tracing::instrument(skip_all)]
@@ -185,9 +185,7 @@ mod tests {
     async fn test_sets_path_correctly_for_run_cmd() {
         let adapter = TestingController::new("test");
         adapter.init().await.unwrap();
-        let output = adapter
-            .spawn_cmd("pwd", None, HashMap::new())
-            .unwrap();
+        let output = adapter.spawn_cmd("pwd", None, HashMap::new()).unwrap();
         let stdout = String::from_utf8_lossy(&output.stdout).to_string();
         assert!(stdout.contains("test"));
     }
@@ -239,7 +237,7 @@ mod tests {
         let adapter = TestingController::new("test");
         adapter.init().await.unwrap();
         adapter
-            .write_file("test.txt", "Hello, world!", None)
+            .write_file("test.txt", b"Hello, world!", None)
             .await
             .expect("Could not write file");
         let result = adapter
@@ -249,7 +247,7 @@ mod tests {
         assert_eq!(result.unwrap().output, "Hello, world!");
 
         adapter
-            .write_file("test.txt", "Hello, back!", None)
+            .write_file("test.txt", b"Hello, back!", None)
             .await
             .unwrap();
         let result = adapter

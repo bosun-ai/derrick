@@ -254,7 +254,7 @@ async fn cmd_with_output(
 #[derive(Deserialize, JsonSchema)]
 struct WriteFileRequest {
     path: String,
-    content: String,
+    content: Vec<u8>,
     working_dir: Option<String>,
 }
 
@@ -300,7 +300,7 @@ async fn read_file(
     rqctx: RequestContext<Mutex<Server>>,
     path: Path<SinglePathIdParam>,
     body: TypedBody<ReadFileRequest>,
-) -> Result<HttpResponseOk<String>, HttpError> {
+) -> Result<HttpResponseOk<Vec<u8>>, HttpError> {
     let body = body.into_inner();
     let content = rqctx
         .context()

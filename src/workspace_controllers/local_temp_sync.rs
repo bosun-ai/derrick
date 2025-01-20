@@ -1,5 +1,5 @@
-use crate::workspace_controllers::WorkspaceController;
 use crate::workspace_controllers::CommandOutput;
+use crate::workspace_controllers::WorkspaceController;
 use anyhow::{Context, Result};
 use async_trait::async_trait;
 use regex;
@@ -145,7 +145,12 @@ impl WorkspaceController for LocalTempSyncController {
     }
 
     #[tracing::instrument(skip_all)]
-    async fn write_file(&self, file: &str, content: &str, working_dir: Option<&str>) -> Result<()> {
+    async fn write_file(
+        &self,
+        file: &str,
+        content: &[u8],
+        working_dir: Option<&str>,
+    ) -> Result<()> {
         let path = self.path(working_dir).as_path().join(file);
 
         // Create directory if it doesn't exist
@@ -156,9 +161,9 @@ impl WorkspaceController for LocalTempSyncController {
     }
 
     #[tracing::instrument(skip_all)]
-    async fn read_file(&self, file: &str, working_dir: Option<&str>) -> Result<String> {
+    async fn read_file(&self, file: &str, working_dir: Option<&str>) -> Result<Vec<u8>> {
         let path = self.path(working_dir).as_path().join(file);
-        std::fs::read_to_string(path).context("Could not read file")
+        std::fs::read(path).context("Could not read file")
     }
 
     #[tracing::instrument(skip_all)]
@@ -212,7 +217,9 @@ mod tests {
     async fn test_cmd_with_output() {
         let adapter = LocalTempSyncController::initialize("test").await;
         adapter.init().await.unwrap();
-        let result = adapter.cmd_with_output("pwd", None, HashMap::new(), None).await;
+        let result = adapter
+            .cmd_with_output("pwd", None, HashMap::new(), None)
+            .await;
         assert!(result.is_ok());
         let stdout = result.unwrap();
         assert!(stdout.output.contains("tmp/test"));
@@ -276,7 +283,9 @@ mod tests {
     async fn test_cmd_invalid() {
         let adapter = LocalTempSyncController::initialize("test").await;
         adapter.init().await.unwrap();
-        let result = adapter.cmd("invalid command", None, HashMap::new(), None).await;
+        let result = adapter
+            .cmd("invalid command", None, HashMap::new(), None)
+            .await;
         assert!(result.is_err());
     }
 
@@ -301,7 +310,7 @@ mod tests {
         let adapter = LocalTempSyncController::initialize("test").await;
         adapter.init().await.unwrap();
         adapter
-            .write_file("write.txt", "Hello, world!", None)
+            .write_file("write.txt", b"Hello, world!", None)
             .await
             .expect("Could not write file");
         let result = adapter
@@ -311,7 +320,7 @@ mod tests {
         assert_eq!(result.unwrap().output, "Hello, world!");
 
         adapter
-            .write_file("write.txt", "Hello, back!", None)
+            .write_file("write.txt", b"Hello, back!", None)
             .await
             .unwrap();
         let result = adapter
@@ -328,14 +337,14 @@ mod tests {
 
         adapter.init().await.unwrap();
         adapter
-            .write_file(path, "Hello, world!", None)
+            .write_file(path, b"Hello, world!", None)
             .await
             .expect("Could not write file");
         let result = adapter
             .read_file(path, None)
             .await
             .expect("Could not read file");
-        assert_eq!(result, "Hello, world!");
+        assert_eq!(result, b"Hello, world!");
     }
 
     #[tokio::test]
@@ -343,21 +352,22 @@ mod tests {
         let adapter = LocalTempSyncController::initialize("weird_characters").await;
         adapter.init().await.unwrap();
         adapter
-            .write_file("write.txt", "Hello, world!\n", None)
+            .write_file("write.txt", b"Hello, world!\n", None)
             .await
             .expect("Could not write file");
 
         let result = adapter.read_file("write.txt", None).await.unwrap();
-        assert_eq!(result, "Hello, world!\n");
+        assert_eq!(result, b"Hello, world!\n");
 
+        let message = "Hello, 🌍!\n";
         // And unicode characters
         adapter
-            .write_file("write.txt", "Hello, 🌍!\n", None)
+            .write_file("write.txt", message.as_bytes(), None)
             .await
             .expect("Could not write file");
 
         let result = adapter.read_file("write.txt", None).await.unwrap();
-        assert_eq!(result, "Hello, 🌍!\n");
+        assert_eq!(result, message.as_bytes());
     }
 
     #[tokio::test]

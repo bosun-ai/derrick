@@ -1,8 +1,8 @@
 use std::collections::HashMap;
 use std::time::Duration;
 
-use crate::{WorkspaceContext, WorkspaceController, WorkspaceProvider};
 use crate::workspace_controllers::CommandOutput;
+use crate::{WorkspaceContext, WorkspaceController, WorkspaceProvider};
 use anyhow::Result;
 
 pub struct Server {
@@ -94,7 +94,7 @@ impl Server {
         &self,
         id: &str,
         path: &str,
-        content: &str,
+        content: &[u8],
         working_dir: Option<&str>,
     ) -> Result<()> {
         match self.workspaces.get(id) {
@@ -108,7 +108,7 @@ impl Server {
         id: &str,
         path: &str,
         working_dir: Option<&str>,
-    ) -> Result<String> {
+    ) -> Result<Vec<u8>> {
         match self.workspaces.get(id) {
             Some(controller) => controller.read_file(path, working_dir).await,
             None => Err(anyhow::anyhow!("Workspace not found: {}", id)),
@@ -151,7 +151,7 @@ impl Server {
         &self,
         id: &str,
         path: &str,
-        content: &str,
+        content: &[u8],
         working_dir: Option<&str>,
     ) -> Result<()> {
         match self.workspaces.get(id) {
@@ -165,7 +165,7 @@ impl Server {
         id: &str,
         path: &str,
         working_dir: Option<&str>,
-    ) -> Result<String> {
+    ) -> Result<Vec<u8>> {
         match self.workspaces.get(id) {
             Some(controller) => controller.read_file(path, working_dir).await,
             None => Err(anyhow::anyhow!("Workspace not found: {}", id)),

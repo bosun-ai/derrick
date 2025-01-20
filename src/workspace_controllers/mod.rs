@@ -20,8 +20,6 @@ pub mod docker;
 // mod remote_nats;
 pub use docker::DockerController;
 
-
-
 #[async_trait]
 pub trait WorkspaceController: Send + Sync + std::fmt::Debug {
     async fn init(&self) -> Result<()>;
@@ -44,6 +42,7 @@ pub trait WorkspaceController: Send + Sync + std::fmt::Debug {
         env: HashMap<String, String>,
         timeout: Option<Duration>,
     ) -> Result<CommandOutput>;
-    async fn write_file(&self, path: &str, content: &str, working_dir: Option<&str>) -> Result<()>;
-    async fn read_file(&self, path: &str, working_dir: Option<&str>) -> Result<String>;
+    async fn write_file(&self, path: &str, content: &[u8], working_dir: Option<&str>)
+        -> Result<()>;
+    async fn read_file(&self, path: &str, working_dir: Option<&str>) -> Result<Vec<u8>>;
 }

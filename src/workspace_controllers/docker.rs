@@ -1,16 +1,22 @@
-use std::collections::HashMap;
-use std::time::Duration;
-
+use anyhow::Result;
 use async_trait::async_trait;
-use bollard::container::{Config, CreateContainerOptions, RemoveContainerOptions};
-use bollard::Docker;
-
-use bollard::exec::{CreateExecOptions, StartExecResults};
 use futures_util::stream::StreamExt;
+use futures_util::TryStreamExt;
+use std::collections::HashMap;
+use std::io::Read;
+use std::path::Path;
+use std::time::Duration;
 use tracing::debug;
 
+use bollard::container::{
+    Config, CreateContainerOptions, DownloadFromContainerOptions, RemoveContainerOptions,
+    UploadToContainerOptions,
+};
+use bollard::exec::{CreateExecOptions, StartExecResults};
+use bollard::Docker;
+use tar::{Archive, Builder as TarBuilder, Header as TarHeader};
+
 use crate::workspace_controllers::{CommandOutput, WorkspaceController};
-use anyhow::Result;
 
 pub static BASE_IMAGE: &str = "bosunai/build-baseimage";
 
@@ -197,21 +203,65 @@ impl WorkspaceController for DockerController {
         }
     }
 
-    async fn write_file(&self, path: &str, content: &str, working_dir: Option<&str>) -> Result<()> {
-        self.cmd(
-            &format!("echo {} > {}", content, path),
-            working_dir,
-            HashMap::new(),
-            None,
-        )
-        .await?;
+    async fn write_file(
+        &self,
+        path: &str,
+        content: &[u8],
+        working_dir: Option<&str>,
+    ) -> Result<()> {
+        let mut path = Path::new(path).to_path_buf();
+
+        if let Some(working_dir) = working_dir {
+            path = Path::new(working_dir).join(path);
+        }
+
+        let directory = if let Some(directory) = path.parent() {
+            directory.to_string_lossy().to_string()
+        } else {
+            "/".to_string()
+        };
+
+        let options = Some(UploadToContainerOptions {
+            path: directory,
+            ..Default::default()
+        });
+
+        let file_name = path
+            .file_name()
+            .ok_or(anyhow::anyhow!("No file name specified in path"))?;
+
+        let mut header = TarHeader::new_gnu();
+        header.set_path(file_name)?;
+        header.set_size(content.len() as u64);
+        let mut archive = TarBuilder::new(Vec::new());
+        archive.append(&mut header, content)?;
+        let tar_bytes = archive.into_inner()?;
+
+        self.docker
+            .upload_to_container(&self.container_id, options, tar_bytes.into())
+            .await?;
+
         Ok(())
     }
 
-    async fn read_file(&self, path: &str, working_dir: Option<&str>) -> Result<String> {
-        self.cmd_with_output(&format!("cat {}", path), working_dir, HashMap::new(), None)
-            .await
-            .map(|output| output.output)
+    async fn read_file(&self, path: &str, working_dir: Option<&str>) -> Result<Vec<u8>> {
+        let tar_bytes_results_stream = self.docker.download_from_container(
+            &self.container_id,
+            Some(DownloadFromContainerOptions {
+                path: path.to_string(),
+                ..Default::default()
+            }),
+        );
+        let tar_bytes = tar_bytes_results_stream.try_collect::<Vec<_>>().await?;
+        let concatenated = tar_bytes.concat();
+        let mut archive = Archive::new(std::io::Cursor::new(concatenated));
+        let mut entry = archive
+            .entries()?
+            .next()
+            .ok_or(anyhow::anyhow!("No file found in archive"))??;
+        let mut buf = Vec::new();
+        entry.read_to_end(&mut buf)?;
+        Ok(buf.into())
     }
 
     async fn provision_repositories(
