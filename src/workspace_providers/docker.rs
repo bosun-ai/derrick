@@ -128,7 +128,13 @@ impl DockerProvider {
                 DockerController::start(&self.docker, &base_image, &context.name).await?;
 
             controller
-                .cmd_with_output(context.setup_script.as_str(), Some("/"), env, None)
+                .write_file("/tmp/setup.sh", context.setup_script.as_bytes(), None)
+                .await?;
+            controller
+                .cmd_with_output("chmod +x /tmp/setup.sh", Some("/"), env.clone(), None)
+                .await?;
+            controller
+                .cmd_with_output("/tmp/setup.sh", Some("/"), env, None)
                 .await?;
 
             self.docker
