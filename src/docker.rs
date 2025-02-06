@@ -12,7 +12,7 @@ pub async fn establish_connection() -> Result<Docker> {
     } else if cfg!(target_os = "macos") {
         let username = whoami::username();
         let macos_socket_path = format!("unix:///Users/{}/.docker/run/docker.sock", username);
-        Docker::connect_with_socket(&macos_socket_path, 5, bollard::API_DEFAULT_VERSION)
+        Docker::connect_with_socket(&macos_socket_path, 60 * 15, bollard::API_DEFAULT_VERSION)
             .map_err(Into::into)
     } else {
         Err(anyhow!("Unsupported OS"))

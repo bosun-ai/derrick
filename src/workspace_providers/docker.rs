@@ -133,9 +133,17 @@ impl DockerProvider {
             controller
                 .cmd_with_output("chmod +x /tmp/setup.sh", Some("/"), env.clone(), None)
                 .await?;
-            controller
+
+            debug!("Running setup script: {}", context.setup_script);
+            let output = controller
                 .cmd_with_output("/tmp/setup.sh", Some("/"), env, None)
                 .await?;
+
+            if output.exit_code != 0 {
+                return Err(anyhow::anyhow!("Setup script failed: {:?}", output));
+            } else {
+                debug!("Setup script succeeded");
+            }
 
             self.docker
                 .commit_container(
