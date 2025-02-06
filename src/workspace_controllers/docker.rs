@@ -36,9 +36,11 @@ impl DockerController {
             ..Default::default()
         };
 
+        tracing::warn!("Starting container forced to platform linux/amd64: {}", name);
         let container_options = Some(CreateContainerOptions {
             name: name.as_str(),
-            platform: None,
+            platform: Some("linux/amd64"),
+            ..Default::default()
         });
 
         let id = docker
@@ -248,10 +250,17 @@ impl WorkspaceController for DockerController {
     }
 
     async fn read_file(&self, path: &str, working_dir: Option<&str>) -> Result<Vec<u8>> {
+        // if path is relative, join it with the working directory
+        let mut path = Path::new(path).to_path_buf();
+        if let Some(working_dir) = working_dir {
+            path = Path::new(working_dir).join(path);
+        }
+
+        tracing::debug!("Reading file: {:?}", path);
         let tar_bytes_results_stream = self.docker.download_from_container(
             &self.container_id,
             Some(DownloadFromContainerOptions {
-                path: path.to_string(),
+                path: path.to_string_lossy(),
                 ..Default::default()
             }),
         );
