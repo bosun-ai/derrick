@@ -9,8 +9,7 @@ use std::time::Duration;
 use tracing::debug;
 
 use bollard::container::{
-    Config, CreateContainerOptions, DownloadFromContainerOptions, RemoveContainerOptions,
-    UploadToContainerOptions,
+    Config, CreateContainerOptions, DownloadFromContainerOptions, RemoveContainerOptions, UploadToContainerOptions
 };
 use bollard::exec::{CreateExecOptions, StartExecResults};
 use bollard::Docker;
@@ -30,9 +29,21 @@ impl DockerController {
     pub async fn start(docker: &Docker, base_image: &str, name: &str) -> Result<Self> {
         let name = format!("{}-{}", name, uuid::Uuid::new_v4());
 
+        let host_config = bollard::models::HostConfig {
+            mounts: Some(vec![bollard::models::Mount {
+                target: Some(String::from("/var/cache/workspace")),
+                source: Some(String::from("derrick_workspace_cache")),
+                typ: Some(bollard::models::MountTypeEnum::VOLUME),
+                consistency: Some(String::from("default")),
+                ..Default::default()
+            }]),
+            ..Default::default()
+        };
+
         let container_config = Config {
             image: Some(base_image),
             tty: Some(true),
+            host_config: Some(host_config),
             ..Default::default()
         };
 
